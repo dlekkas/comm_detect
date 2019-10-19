@@ -1,15 +1,7 @@
-#include <assert.h>
-
-#include <vector>
-#include <unordered_map>
-#include <iostream>
-#include <random>
+#include "../include/plp.h"
 
 
-#define EPS 0.0001
-
-
-int random_id(int n) {
+int PLP::random_id(int n) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<int> dist(0,n);
@@ -17,12 +9,10 @@ int random_id(int n) {
 }
 
 
-int dominant_label(const std::vector<int> &neighbors,
-			const std::vector<int> &communities) {
-
+int PLP::dominant_label(int node) {
 	std::unordered_map<int,int> label_freq;
-	for (auto const& node: neighbors) {
-		label_freq[communities[node]]++;
+	for (auto const& neighbor: graph.adj_list[node]) {
+		label_freq[graph.communities[neighbor]]++;
 	}
 
 	int max_val = 0, dom_label = -1;
@@ -37,40 +27,25 @@ int dominant_label(const std::vector<int> &neighbors,
 }
 
 
-
-
-int main() {
-	int n = 200;
-	std::vector<int> communities;
-	std::vector<std::vector<int>> adj_list;
-
-	for (int i = 0; i < n; i++) {
-		communities[i] = random_id(n);
+void PLP::DetectCommunities() {
+	for (int i = 0; i < graph.n; i++) {
+		graph.communities[i] = random_id(graph.n);
 	}
 
-	/*
-	int active_nodes[n];
-	for (int i = 0; i < n; i++) {
-		active_nodes[i] = 1;
-	}
-	*/
-
-	int updated = n;
-	int threshold = n * EPS;
+	int updated = graph.n;
 	while (updated > threshold) {
 		updated = 0;
+		for (int i = 0; i < graph.n; i++) {
+			int new_label = dominant_label(i);
 
-		for (int i = 0; i < n; i++) {
-			int new_label = dominant_label(adj_list[i], communities);
-			if (new_label != communities[i]) {
-				communities[i] = new_label;
+			if (new_label != graph.communities[i]) {
+				graph.communities[i] = new_label;
 				updated++;
 			}
 
 		}
 	}
 
-	return 0;
 }
 
 

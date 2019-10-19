@@ -26,17 +26,17 @@ class GraphComm {
 		/* print the adjacency list (debugging purposes) */
 		void PrintGraph();
 
+		/* number of vertices */
+		int n;
+		/* number of edges */
+		int m;
+
 		/* adjacency list of graph */
 		std::vector<std::vector<int>> adj_list;
 
 		/* community of each node */
 		std::vector<int> communities;
 
-	private:
-		/* number of vertices */
-		int n;
-		/* number of edges */
-		int m;
 
 };
 

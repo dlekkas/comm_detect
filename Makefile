@@ -12,13 +12,13 @@ BOOSTFLAGS = -lpthread
 
 all: $(OUTDIR)/plp_test $(OUTDIR)/modularity_test
 
-$(OUTDIR)/plp_test: $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o
-	$(CC) $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS)
+$(OUTDIR)/plp_test: $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o $(OBJDIR)/plp.o
+	$(CC) $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o $(OBJDIR)/plp.o -o $@ $(BOOSTFLAGS)
 
 $(OUTDIR)/modularity_test: $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o
 	$(CC) $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS)
 
-$(OBJDIR)/plp_test.o: $(TSTDIR)/plp_test.cc $(INCLUDEDIR)/graph.h
+$(OBJDIR)/plp_test.o: $(TSTDIR)/plp_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plp.h
 	$(CC) -o $@ $(CFLAGS) $(TSTDIR)/plp_test.cc
 
 $(OBJDIR)/modularity_test.o: $(TSTDIR)/modularity_test.cc $(INCLUDEDIR)/network.h $(INCLUDEDIR)/modularity.h
@@ -26,6 +26,9 @@ $(OBJDIR)/modularity_test.o: $(TSTDIR)/modularity_test.cc $(INCLUDEDIR)/network.
 
 $(OBJDIR)/graph.o: $(SRCDIR)/graph.cc $(INCLUDEDIR)/graph.h
 	$(CC) -o $@ $(CFLAGS) $(SRCDIR)/graph.cc
+
+$(OBJDIR)/plp.o: $(SRCDIR)/plp.cc $(INCLUDEDIR)/plp.h
+	$(CC) -o $@ $(CFLAGS) $(SRCDIR)/plp.cc
 
 clean:
 	rm -f $(OBJDIR)/*.o $(OUTDIR)/*
