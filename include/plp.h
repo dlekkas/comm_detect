@@ -16,13 +16,19 @@ class PLP {
 		/* graph on which PLP will be applied */
 		GraphComm graph;
 
-		PLP(const GraphComm &init_graph): graph(init_graph),
+		PLP(GraphComm &init_graph): graph(init_graph),
 				threshold(init_graph.n * EPS) {};
 
 		~PLP() {};
 
 		/* detect communities of graph */
 		void DetectCommunities();
+
+		/* Resulting communities are printed in the format specified by the
+		 * DIMACS 10th challenge (i.e each line has the community number that
+		 * corresponds to this node - line i has the community in which node i-1
+		 * belongs) */
+		void PrintCommunities(const std::string &file_name);
 
 	private:
 		/* number of node labels updated at a single iteration until we stop */

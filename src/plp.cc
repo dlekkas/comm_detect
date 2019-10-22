@@ -17,7 +17,7 @@ int PLP::dominant_label(int node) {
 
 	int max_val = 0, dom_label = -1;
 	for(auto const& label: label_freq) {
-		if (max_val < label.second) {
+		if (max_val <= label.second) {
 			max_val = label.second;
 			dom_label = label.first;
 		}
@@ -29,7 +29,7 @@ int PLP::dominant_label(int node) {
 
 void PLP::DetectCommunities() {
 	for (int i = 0; i < graph.n; i++) {
-		graph.communities[i] = random_id(graph.n);
+		graph.communities.push_back(i);
 	}
 
 	int updated = graph.n;
@@ -37,7 +37,6 @@ void PLP::DetectCommunities() {
 		updated = 0;
 		for (int i = 0; i < graph.n; i++) {
 			int new_label = dominant_label(i);
-
 			if (new_label != graph.communities[i]) {
 				graph.communities[i] = new_label;
 				updated++;
@@ -46,6 +45,19 @@ void PLP::DetectCommunities() {
 		}
 	}
 
+}
+
+void PLP::PrintCommunities(const std::string &file_name) {
+	std::ofstream ofs;
+	ofs.open(file_name, std::ios_base::out | std::ios_base::trunc);
+	if (ofs.fail()) {
+		std::cerr << "Error opening file " << file_name << std::endl;
+		std::exit(2);
+	}
+
+	for (int i = 0; i < graph.n; i++) {
+		ofs << graph.communities[i] << std::endl;
+	}
 }
 
 

@@ -41,3 +41,4 @@ void GraphComm::PrintGraph() {
 // in order to evaluate the output file on modularity
 void GraphComm::ProduceResult(const std::string &file_name) {
 }
+

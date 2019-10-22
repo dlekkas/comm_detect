@@ -147,7 +147,7 @@ modularity compute_modularity(communities z, network net) {
     // TODO move weight_net in denominator out of the sum
     // TODO compute separately the two components of the sum
     weight weight_comm = weight_of_community(*c, net);
-    mod += (weight_comm / weight_net) - ((vol_c * vol_c) / (4 * weight_net * weight_net));
+    mod += (1.0 * weight_comm / weight_net) - ((1.0 * vol_c * vol_c) / (4 * weight_net * weight_net));
   }
 
   return mod;

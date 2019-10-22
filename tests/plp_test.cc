@@ -20,8 +20,8 @@ int main(int argc, char* argv[]) {
 	PLP test_plp { test_g };
 	test_plp.DetectCommunities();
 
-	/* print the result to stdout */
-	test_g.ProduceResult("dummy.out");
+	/* print the result to file */
+	test_plp.PrintCommunities("comm.out");
 
 	return 0;
 }
