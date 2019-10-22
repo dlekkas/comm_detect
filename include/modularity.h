@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <iterator>
+#include <unordered_map>
 #include "./network.h"
 
 using namespace std;
@@ -92,19 +93,27 @@ communities communities_from_file(const std::string &file_name) {
 		std::exit(2);
 	}
 
-	// read number of communities
-	int n;
-  ifs >> n;
-
-  communities comm_list;
+  std::unordered_map<node_id, vector<node_id>> comms_map;
 	std::string tmp;
-  std::getline(ifs, tmp);
-	while (std::getline(ifs, tmp)) {
-		std::istringstream buf(tmp);
-		std::vector<node_id> line { std::istream_iterator<int>(buf),
-				std::istream_iterator<int>()};
-		comm_list.push_back(line);
+
+  // fill a map that contains the participants of each community
+  // the key of the map is the label of the community
+  node_id i = 0;
+  while (std::getline(ifs, tmp)) {
+    node_id c = stoi(tmp);
+		comms_map[c].push_back(i);
+    i++;
 	}
+
+	communities comm_list;
+
+  for (auto it: comms_map) {
+    vector<node_id> participants_of_community;
+    for (auto i: it.second) {
+      participants_of_community.push_back(i);
+    }
+    comm_list.push_back(participants_of_community);
+  }
 
   return comm_list;
 }
