@@ -30,5 +30,8 @@ $(OBJDIR)/graph.o: $(SRCDIR)/graph.cc $(INCLUDEDIR)/graph.h
 $(OBJDIR)/plp.o: $(SRCDIR)/plp.cc $(INCLUDEDIR)/plp.h
 	$(CC) -o $@ $(CFLAGS) $(SRCDIR)/plp.cc
 
+$(OBJDIR)/plm.o: $(SRCDIR)/plm.cc $(INCLUDEDIR)/plm.h
+	$(CC) -o $@ $(CFLAGS) $(SRCDIR)/plm.cc
+
 clean:
 	rm -f $(OBJDIR)/*.o $(OUTDIR)/*
