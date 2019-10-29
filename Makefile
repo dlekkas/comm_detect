@@ -7,13 +7,14 @@ TSTDIR = tests
 INCLUDEDIR = include
 
 CC = g++
-CFLAGS = -c -std=c++14 -Wall -O3 -g
+CFLAGS = -c -std=c++14 -Wall -O3 -g -fopenmp
 BOOSTFLAGS = -lpthread
+OPENMPFLAGS = -fopenmp
 
 all: $(OUTDIR)/plp_test $(OUTDIR)/modularity_test
 
 $(OUTDIR)/plp_test: $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o $(OBJDIR)/plp.o
-	$(CC) $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o $(OBJDIR)/plp.o -o $@ $(BOOSTFLAGS)
+	$(CC) $(OBJDIR)/plp_test.o $(OBJDIR)/graph.o $(OBJDIR)/plp.o -o $@ $(BOOSTFLAGS) $(OPENMPFLAGS)
 
 $(OUTDIR)/modularity_test: $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o
 	$(CC) $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS)
