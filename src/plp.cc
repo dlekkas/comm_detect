@@ -29,12 +29,14 @@ int PLP::dominant_label(int node) {
 		label_freq[graph.communities[*neighbor_it]]++;
 	}
 
+	// https://stackoverflow.com/a/56710797
+	// parallel for on unordered map
 	int max_val = 0, dom_label = -1;
 	std::pair<int, int> max_pair = std::make_pair(dom_label, max_val);
 	#pragma omp declare reduction \
 	(maxpair : std::pair<int, int> : omp_out=max_with_arg(omp_out,omp_in)) \
 	initializer(omp_priv = omp_orig)
-	#pragma omp parallel for  shared(label_freq) reduction(maxpair:max_pair) schedule(static, 100)
+	#pragma omp parallel for shared(label_freq) reduction(maxpair:max_pair) schedule(static, 100)
   	for (size_t b = 0; b < label_freq.bucket_count(); b++) {
 		for (auto bi = label_freq.begin(b); bi != label_freq.end(b);bi++) {
 			max_pair = max_with_arg(max_pair, *bi);
