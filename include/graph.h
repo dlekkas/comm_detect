@@ -9,6 +9,7 @@
 #include <sstream>
 #include <iterator>
 
+#include "../include/network.h"
 
 class GraphComm {
 
@@ -36,6 +37,11 @@ class GraphComm {
 
 		/* community of each node */
 		std::vector<int> communities;
+
+		/* turn graph into a network */
+		network CreateNetwork();
+
+		network net;
 
 
 };

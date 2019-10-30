@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     g.Init(graph_file);
     vector<vector<int>> neighbors = g.adj_list;
 
-    // transform graph to network
+    // transform graph to network - TODO: add this to graph file - change here
     network net;
     for (vector<vector<int>>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
         vector<int> v_temp = *it;

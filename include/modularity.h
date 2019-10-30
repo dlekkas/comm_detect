@@ -148,7 +148,7 @@ void print_network(network net) {
 modularity compute_modularity(communities z, network net) {
   modularity mod = 0;
 
-  weight weight_net = weight_of_network(net);
+  weight weight_net = weight_of_network(net); // TODO: this doesn't change, maybe compute it only once
   cout << "weight_net: " << weight_net << endl;
 
   for (communities::iterator c = z.begin(); c != z.end(); ++c) {
@@ -160,6 +160,31 @@ modularity compute_modularity(communities z, network net) {
   }
 
   return mod;
+}
+
+
+modularity compute_modularity_difference(node_id u, community c, community d, network net) {
+
+    weight weight_net = weight_of_network(net); 
+    weight node_vol = volume_of_node(u, net);
+
+    c.erase(std::remove(c.begin(), c.end(), u), c.end());
+    d.erase(std::remove(d.begin(), d.end(), u), d.end());
+
+    weight weight_c = weight_from_node_to_community(u, c, net);
+    weight weight_d = weight_from_node_to_community(u, d, net);
+
+
+    weight volume_c = volume_of_community(c, net);
+    weight volume_d = volume_of_community(d, net);
+
+    float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
+    float  b = (1.0 * (volume_c - volume_d) * node_vol) / (2 * weight_net * weight_net);
+
+
+    modularity mod_diff = a+b; 
+
+    return mod_diff;
 }
 
 #endif 			// MODULARITY_H
