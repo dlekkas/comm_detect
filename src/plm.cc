@@ -56,15 +56,12 @@ GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 	}
 	sort(g_vertexes.begin(), g_vertexes.end());
 	g.n = g_vertexes.size();
-	cout << "coarsen!!!!!!!\n" ;
-	print(g_vertexes);
 
 	for (i=0; i<g.n; i++)	
 		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i)); 
 
 	network new_net;
 	// TODO: make it quicker
-	//g.PrintGraph();
 	for (i=0; i<g.n; i++) {
 		std::vector<int> neighbors_i;
 		vector<pair<node_id, weight>> v;
@@ -73,11 +70,9 @@ GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 			if (w > 0) {
 				neighbors_i.push_back(j);
 				v.push_back(make_pair(j, w));
-				//cout << "i: " << g_vertexes[i] << " j: " << g_vertexes[j] << " w: " << w << endl;
 			}
 		}	
 		g.adj_list.push_back(neighbors_i);
-		//print(v);
 		new_net.push_back(v);		
 	}
 
@@ -113,10 +108,8 @@ community PLM::get_community_vector(std::vector<int> communities, int comm) {
 std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) {
 	int unstable = 1;
 	network net = graph.net;
-	cout << "**************************************" << endl;
 	while (unstable) {
 		unstable = 0;
-		print(communities);
 		for (int i=0; i<graph.n; i++) {
 			int i_comm = communities[i];
 			community i_comm_vector = get_community_vector(communities, i_comm);
@@ -163,7 +156,6 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 	if (c_new != c_singleton) {
 		g.communities = c_new;
 		GraphComm g_new = coarsen(&g, c_new);
-		//print_map(g.com_map);
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		c_new = prolong(g, c_coarsened); 
 	}
@@ -175,6 +167,7 @@ void PLM::DetectCommunities() {
 
  	graph.net = graph.CreateNetwork(); 
 	graph.communities = Recursive_comm_detect(graph);
+	cout << "final communities: ";
 	print(graph.communities);
 
 }
