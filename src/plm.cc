@@ -6,23 +6,32 @@
  
 void print(std::vector<int> const &input)
 {
-	for (int i = 0; i < input.size(); i++) {
+	for (int i = 0; i <(int)(input.size()); i++) {
 		std::cout << input.at(i) << ' ';
 	}
 	std::cout << '\n';
 }
 
 
+void print_map(std::map<int,int> myMap) {
+for(map<int, int>::const_iterator it = myMap.begin();
+    it != myMap.end(); ++it)
+{
+    std::cout << it->first << " " << it->second << "\n";
+}
+}
+
+
+
 int PLM::connected(int comm_1, int comm_2, std::vector<int> communities, std::vector<std::vector<int>> adj_list) {
 
 	int n = communities.size();
-	int weight=0; // 
+	int weight=0;
 	for (int i=0; i<n; i++) {
 		if (communities[i] == comm_1) {
  			std::vector<int> neighbors_i = adj_list[i];
 			for (int j=0; j<(int)(neighbors_i.size()); j++) {
 				if (communities[neighbors_i[j]] == comm_2) {
-					//cout << "i: " << i << " j: " << j << endl;
  					weight+=1;
 				}
 			}
@@ -32,19 +41,27 @@ int PLM::connected(int comm_1, int comm_2, std::vector<int> communities, std::ve
 }
 
 
-GraphComm PLM::coarsen(GraphComm g_initial, std::vector<int> comm) {
+GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 
 	GraphComm g;
+
 	std::vector<int> g_vertexes;
 	int i;
-	
-	for (i=0; i<g_initial.n; i++) {
-		int c = comm[i];
-		if (std::find(g_vertexes.begin(), g_vertexes.end(), c) == g_vertexes.end())
-			g_vertexes.push_back(c);
-	}
 
+	for (i=0; i<(*g_initial).n; i++) {
+		int c = comm[i];
+		if (std::find(g_vertexes.begin(), g_vertexes.end(), c) == g_vertexes.end()) {
+			g_vertexes.push_back(c);
+		}
+	}
+	sort(g_vertexes.begin(), g_vertexes.end());
 	g.n = g_vertexes.size();
+	cout << "coarsen!!!!!!!\n" ;
+	print(g_vertexes);
+
+	for (i=0; i<g.n; i++)	
+		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i)); 
+
 	network new_net;
 	// TODO: make it quicker
 	//g.PrintGraph();
@@ -52,7 +69,7 @@ GraphComm PLM::coarsen(GraphComm g_initial, std::vector<int> comm) {
 		std::vector<int> neighbors_i;
 		vector<pair<node_id, weight>> v;
 		for (int j=0; j<g.n; j++) {
-			int w = connected(g_vertexes[i], g_vertexes[j], comm, g_initial.adj_list); 
+			int w = connected(g_vertexes[i], g_vertexes[j], comm, (*g_initial).adj_list); 
 			if (w > 0) {
 				neighbors_i.push_back(j);
 				v.push_back(make_pair(j, w));
@@ -70,18 +87,18 @@ GraphComm PLM::coarsen(GraphComm g_initial, std::vector<int> comm) {
 }
 
 
-// What is the mapping reffered at paper?
-
 std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_comm) {
 	
 	std::vector<int> init_comm = g_initial.communities;
 	std::vector<int> new_comm;
-	
-	for (int i=0; i<g_initial.n; i++)
-		new_comm.push_back(coarsened_comm[init_comm[i]]); //TODO: check if this is correct
 
+	for (int i=0; i<g_initial.n; i++) {
+		int i_comm = init_comm[i];
+		new_comm.push_back(coarsened_comm[g_initial.com_map[i_comm]]);
+	}
 	return new_comm;
 }
+
 
 community PLM::get_community_vector(std::vector<int> communities, int comm) {
 	community comm_vector;
@@ -92,15 +109,15 @@ community PLM::get_community_vector(std::vector<int> communities, int comm) {
 	return comm_vector;
 }
 
+
 std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) {
 	int unstable = 1;
 	network net = graph.net;
-
+	cout << "**************************************" << endl;
 	while (unstable) {
 		unstable = 0;
+		print(communities);
 		for (int i=0; i<graph.n; i++) {
-			// create a map <neighbor_id, mod_diff>
-			//print(communities);
 			int i_comm = communities[i];
 			community i_comm_vector = get_community_vector(communities, i_comm);
 			int n_id = 0;
@@ -141,14 +158,12 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 	for (int i=0; i<g.n; i++)
 		c_singleton.push_back(i);
 
-	//print(c_singleton);
 	std::vector<int> c_new = Local_move(g, c_singleton);
-	//print(c_new);
 
 	if (c_new != c_singleton) {
 		g.communities = c_new;
-		GraphComm g_new = coarsen(g, c_new);
-		//g_new.PrintGraph();
+		GraphComm g_new = coarsen(&g, c_new);
+		//print_map(g.com_map);
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		c_new = prolong(g, c_coarsened); 
 	}
@@ -160,6 +175,7 @@ void PLM::DetectCommunities() {
 
  	graph.net = graph.CreateNetwork(); 
 	graph.communities = Recursive_comm_detect(graph);
+	print(graph.communities);
 
 }
 

@@ -30,7 +30,7 @@ class PLM {
 		std::vector<int> prolong(GraphComm g_initial, std::vector<int> coarsened_comm);
 
 		/* turn each community of the graph taken as argument into a supernode and create a new graph */
-		GraphComm coarsen(GraphComm g_initial, std::vector<int> comm);
+		GraphComm coarsen(GraphComm* g_initial, std::vector<int> comm);
 
 
 		/* do local moves for modularity gain */

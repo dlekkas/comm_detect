@@ -9,6 +9,8 @@
 #include <sstream>
 #include <iterator>
 
+#include <map>
+
 #include "../include/network.h"
 
 class GraphComm {
@@ -40,6 +42,9 @@ class GraphComm {
 
 		/* turn graph into a network */
 		network CreateNetwork();
+
+		/* used only by PLM - mapping of communities during 'coarsen' stage */
+                std::map<int,int> com_map;
 
 		network net;
 
