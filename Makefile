@@ -7,7 +7,7 @@ TSTDIR = tests
 INCLUDEDIR = include
 
 CC = g++
-CFLAGS = -c -std=c++14 -Wall -O3 -g -fopenmp
+CFLAGS = -c -std=c++11 -Wall -O3 -g -fopenmp
 BOOSTFLAGS = -lpthread
 OPENMPFLAGS = -fopenmp
 

@@ -4,7 +4,7 @@
 #include <omp.h>
 #include <vector>
 #include <iostream>
-
+#include <sys/time.h>
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -28,12 +28,20 @@ int main(int argc, char* argv[]) {
 	/* initialize graph based on file and confirm correct parsing */
 	GraphComm test_g;
 	test_g.Init(file_name);
-	test_g.PrintGraph();
+	//test_g.PrintGraph();
 
 	/* detect communities of graph */
 	PLP test_plp { test_g };
+	struct timeval start, end;
+	
+	gettimeofday(&start, NULL);
+
 	test_plp.DetectCommunities();
 
+	gettimeofday(&end, NULL);
+	float duration = (1.0 * end.tv_sec * 1000 + (1.0 * end.tv_usec) / 1000) - (1.0 * start.tv_sec * 1000 + (1.0 * start.tv_usec) / 1000);
+
+	cout << "Detect Communities time (in ms): " << duration << endl;	
 	/* print the result to file */
 	test_plp.PrintCommunities("comm.out");
 
