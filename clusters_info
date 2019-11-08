@@ -1,0 +1,9 @@
+-> ssh username@euler.ethz.ch
+
+-> to run with openmp:
+* export OMP_NUM_THREADS = x
+  bsub -n <number of cores> <file to run> <arguments>
+
+-> to connect to the node a job is running:
+* bjob_connect JOBID 
+
