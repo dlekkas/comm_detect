@@ -77,6 +77,8 @@ GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 	}
 
 	g.net = new_net;
+	g.weight_net = weight_of_network(g.net);
+	g.volumes = compute_node_volumes(g.n, g.net);
 	return g;
 
 }
@@ -109,6 +111,7 @@ std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) 
 	int unstable = 1;
 	network net = graph.net;
 	while (unstable) {
+		print(communities);
 		unstable = 0;
 		for (int i=0; i<graph.n; i++) {
 			int i_comm = communities[i];
@@ -120,7 +123,7 @@ std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) 
 				int n_comm = communities[neighbor];
                        		community n_comm_vector = get_community_vector(communities, n_comm);
 				// for each v, neighbor, compute mod_diff
-				modularity mod_diff = compute_modularity_difference(i, i_comm_vector, n_comm_vector, net);
+				modularity mod_diff = compute_modularity_difference(i, i_comm_vector, n_comm_vector, net, graph.weight_net, graph.volumes);
 				mod_map.insert(std::pair<int,float>(neighbor, mod_diff));
 			// choose the <id, d> = <neighbor_id, mod_diff> with the largest mod_diff
 			}
@@ -166,6 +169,8 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 void PLM::DetectCommunities() {
 
  	graph.net = graph.CreateNetwork(); 
+	graph.weight_net = weight_of_network(graph.net);
+	graph.volumes = compute_node_volumes(graph.n, graph.net);
 	graph.communities = Recursive_comm_detect(graph);
 	cout << "final communities: ";
 	print(graph.communities);

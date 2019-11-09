@@ -75,11 +75,30 @@ weight volume_of_node(node_id u, network net) {
   return sum;
 }
 
+std::vector<int> compute_node_volumes(int n, network net) {
+	std::vector<int> volumes;
+	for (int i=0; i<n; i++) {
+		volumes.push_back(volume_of_node(i, net));
+	}
+	return volumes;
+
+}
+
 weight volume_of_community(community c, network net) {
   weight sum = 0;
 
   for (community::iterator it = c.begin(); it != c.end(); ++it) {
     sum += volume_of_node(*it, net);
+  }
+
+  return sum;
+}
+
+weight volume_of_community_plm(community c, std::vector<int> volumes) {
+  weight sum = 0;
+
+  for (community::iterator it = c.begin(); it != c.end(); ++it) {
+    sum += volumes[*it];
   }
 
   return sum;
@@ -163,10 +182,10 @@ modularity compute_modularity(communities z, network net) {
 }
 
 
-modularity compute_modularity_difference(node_id u, community c, community d, network net) {
+modularity compute_modularity_difference(node_id u, community c, community d, network net, weight w, std::vector<int> volumes) {
 
-    weight weight_net = weight_of_network(net); 
-    weight node_vol = volume_of_node(u, net);
+    weight weight_net = w; 
+    weight node_vol = volumes[u];
 
     c.erase(std::remove(c.begin(), c.end(), u), c.end());
     d.erase(std::remove(d.begin(), d.end(), u), d.end());
@@ -175,8 +194,8 @@ modularity compute_modularity_difference(node_id u, community c, community d, ne
     weight weight_d = weight_from_node_to_community(u, d, net);
 
 
-    weight volume_c = volume_of_community(c, net);
-    weight volume_d = volume_of_community(d, net);
+    weight volume_c = volume_of_community_plm(c, volumes);
+    weight volume_d = volume_of_community_plm(d, volumes);
 
     float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
     float  b = (1.0 * (volume_c - volume_d) * node_vol) / (2 * weight_net * weight_net);

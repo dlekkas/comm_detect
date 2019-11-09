@@ -2,7 +2,7 @@
 #include "../include/plm.h"
 
 #include <vector>
-
+#include <sys/time.h>
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -18,7 +18,17 @@ int main(int argc, char* argv[]) {
 
 	/* detect communities of graph */
 	PLM test_plm { test_g };
-	test_plm.DetectCommunities();
+	struct timeval start, end;
+
+        gettimeofday(&start, NULL);
+
+        test_plm.DetectCommunities();
+
+        gettimeofday(&end, NULL);
+        float duration = (1.0 * end.tv_sec * 1000 + (1.0 * end.tv_usec) / 1000) - (1.0 * start.tv_sec * 1000 + (1.0 * start.tv_usec) / 1000);
+
+        cout << "Detect Communities time (in ms): " << duration << endl;
+
 
 	/* print the result to file */
 	test_plm.PrintCommunities("comm_plm.out");

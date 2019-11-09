@@ -40,8 +40,14 @@ class GraphComm {
 		/* community of each node */
 		std::vector<int> communities;
 
+		/* compute the volume of each node only once*/
+		std::vector<int> volumes;
+
 		/* turn graph into a network */
 		network CreateNetwork();
+
+		/* compute the total weight of the network only once + save it */
+		weight weight_net;		
 
 		/* used only by PLM - mapping of communities during 'coarsen' stage */
                 std::map<int,int> com_map;
