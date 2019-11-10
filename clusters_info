@@ -2,7 +2,7 @@
 
 -> make
 * make clean
-  make -f Makefile_cluster
+  make CC=/path/to/gcc
 
 -> to run with openmp:
 * export LD_LIBRARY_PATH=/cluster/apps/gcc/6.3.0/lib64/:$LD_LIBRARY_PATH

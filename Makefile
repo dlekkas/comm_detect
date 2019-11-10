@@ -6,7 +6,7 @@ SRCDIR = src
 TSTDIR = tests
 INCLUDEDIR = include
 
-CC = g++
+CC = /cluster/apps/gcc/6.3.0/bin/g++
 CFLAGS = -c -std=c++14 -Wall -O3 -g -fopenmp
 BOOSTFLAGS = -lpthread
 OPENMPFLAGS = -fopenmp
