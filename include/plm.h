@@ -39,6 +39,10 @@ class PLM {
 		/* */
 		std::vector<int> Recursive_comm_detect(GraphComm g);
 
+		/* */
+		int ReturnCommunity(int node, int i_comm, community i_comm_vector, std::vector<int> adj_list_i, std::vector<int> communities, network net, weight w, std::vector<int> v);
+		
+
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
 		 * corresponds to this node - line i has the community in which node i-1

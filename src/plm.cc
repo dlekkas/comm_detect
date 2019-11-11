@@ -1,6 +1,7 @@
 #include "../include/plm.h"
 #include "../include/graph.h"
 #include "../include/modularity.h"
+#include <omp.h>
 
 #include <map>
  
@@ -43,6 +44,7 @@ int PLM::connected(int comm_1, int comm_2, std::vector<int> communities, std::ve
 
 GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 
+	// TODO: parallel
 	GraphComm g;
 
 	std::vector<int> g_vertexes;
@@ -61,7 +63,6 @@ GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i)); 
 
 	network new_net;
-	// TODO: make it quicker
 	for (i=0; i<g.n; i++) {
 		std::vector<int> neighbors_i;
 		vector<pair<node_id, weight>> v;
@@ -103,7 +104,39 @@ community PLM::get_community_vector(std::vector<int> communities, int comm) {
 		if (communities[i] == comm)
 			comm_vector.push_back(i);
 	}
+	// contains all elements of the community comm
 	return comm_vector;
+}
+
+std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, float> n) {
+        return (n.second >= r.second) ? n : r;
+}
+
+int PLM::ReturnCommunity(int i, int i_comm, community i_comm_vector, std::vector<int> adj_list_i, std::vector<int> communities, network net, weight w, std::vector<int> v) {
+        std::unordered_map<int,float> mod_map;
+	#pragma omp parallel for
+        for (auto neighbor_it = adj_list_i.begin(); neighbor_it < adj_list_i.end(); ++neighbor_it) {
+                community n_comm_vector = get_community_vector(communities, communities[*neighbor_it]);
+                // for each v, neighbor, compute mod_diff
+                mod_map[*neighbor_it] = compute_modularity_difference(i, i_comm_vector, n_comm_vector, net, w, v);
+        }
+
+	std::pair<int, float> max_pair = std::make_pair(i, -1.0);
+
+	#pragma omp declare reduction \
+        (maxpair : std::pair<int, float> : omp_out=max_pair_arg(omp_out,omp_in)) \
+        initializer(omp_priv = omp_orig)
+        #pragma omp parallel for shared(mod_map) reduction(maxpair:max_pair) schedule(static, 1)
+        for (size_t b = 0; b < mod_map.bucket_count(); b++) {
+                for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
+                        max_pair = max_pair_arg(max_pair, *bi);
+        }
+	
+	modularity max_diff = max_pair.second;
+	if (max_diff > 0)
+		return communities[max_pair.first];
+	else 
+		return i_comm; 
 }
 
 
@@ -111,32 +144,14 @@ std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) 
 	int unstable = 1;
 	network net = graph.net;
 	while (unstable) {
-		print(communities);
+		//print(communities);
 		unstable = 0;
+		#pragma omp parallel for shared(unstable, communities, graph, net) schedule(static, 1)
 		for (int i=0; i<graph.n; i++) {
 			int i_comm = communities[i];
 			community i_comm_vector = get_community_vector(communities, i_comm);
-			int n_id = 0;
-			modularity max_diff = -1.0;
-			std::map<int,float> mod_map;
-			for (int neighbor: graph.adj_list[i]) {
-				int n_comm = communities[neighbor];
-                       		community n_comm_vector = get_community_vector(communities, n_comm);
-				// for each v, neighbor, compute mod_diff
-				modularity mod_diff = compute_modularity_difference(i, i_comm_vector, n_comm_vector, net, graph.weight_net, graph.volumes);
-				mod_map.insert(std::pair<int,float>(neighbor, mod_diff));
-			// choose the <id, d> = <neighbor_id, mod_diff> with the largest mod_diff
-			}
-			for(std::map<int, float>::iterator it=mod_map.begin(); it!=mod_map.end(); ++it) {
-				if (max_diff <= it -> second) {
-					max_diff = it -> second;
-					n_id = it -> first;
-				
-				}
-
-			}
-			int z = communities[n_id];
-			if (max_diff>0 and z != communities[i]) {
+			int z = ReturnCommunity(i, i_comm, i_comm_vector, graph.adj_list[i], communities, net, graph.weight_net, graph.volumes);
+			if (z != i_comm) {
 				communities[i] = z;
 				unstable=1;
 			}
@@ -151,9 +166,13 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 	
 
 	std::vector<int> c_singleton;
-	for (int i=0; i<g.n; i++)
-		c_singleton.push_back(i);
-
+	#pragma omp parallel for ordered schedule(static, 1) 
+	for (int i=0; i<g.n; i++) {
+		#pragma omp ordered 
+		{ 
+			c_singleton.push_back(i); 
+		}
+	}
 	std::vector<int> c_new = Local_move(g, c_singleton);
 
 	if (c_new != c_singleton) {
