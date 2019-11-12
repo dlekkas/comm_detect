@@ -2,6 +2,8 @@
 
 #include <omp.h>
 
+#define NUM_SPLIT 100
+
 int PLP::random_id(int n) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -76,15 +78,13 @@ int PLP::dominant_label(int node) {
 
 
 void PLP::DetectCommunities() {
+	graph.communities.reserve(graph.n);
+
 	// TODO see https://stackoverflow.com/questions/13224155/how-does-the-omp-ordered-clause-work
 	// play with the number of static scheduling
-	# pragma omp parallel for ordered schedule(static, 100)
+	# pragma omp parallel for schedule(static, NUM_SPLIT)
 	for (int i = 0; i < graph.n; i++) {
-
-  		#pragma omp ordered
-		{
-			graph.communities.push_back(i);
-		}
+		graph.communities[i] = i;
 	}
 
 	// // print to see if communities have been set in order

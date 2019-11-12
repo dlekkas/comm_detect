@@ -13,7 +13,6 @@ void GraphComm::Init(const std::string &file_name) {
 	int weighted;
 	// read number of vertices and edges from 1st line of file
 	ifs >> n >> m >> weighted;
-	std::cout << "weighted: " << weighted << std::endl;
 
 	// read neighours from the rest lines and populate adjacency list
 	std::string tmp;
@@ -24,6 +23,7 @@ void GraphComm::Init(const std::string &file_name) {
 				std::istream_iterator<int>()};
 		adj_list.push_back(line);
 	}
+
 }
 
 

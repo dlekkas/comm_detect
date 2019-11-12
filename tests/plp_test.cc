@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 		int tid = omp_get_thread_num();
 
 		if (tid == 0) {
-			std::cout << "Parallel PLP with " << omp_get_num_threads() << " threads." << std::endl;
+			std::cout << "algo: PLP, threads: " << omp_get_num_threads() << ", ";
 		}
 	}
 
@@ -38,11 +38,11 @@ int main(int argc, char* argv[]) {
 	auto end = std::chrono::system_clock::now();
 
 	auto total_time = std::chrono::duration_cast<
-			std::chrono::microseconds>(end - start).count();
-	cout << "Detect Communities time (in ms): " << total_time / 1000.0 << endl;	
+			std::chrono::milliseconds>(end - start).count();
+	std::cout << "time: " << total_time / 1000.0 << std::endl;
 
 	/* print result to file */
-	test_plp.PrintCommunities("comm.out");
+	//test_plp.PrintCommunities("comm.out");
 
 	return 0;
 }
