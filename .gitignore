@@ -1,3 +1,11 @@
+# ignore files for compilation and execution
 bin/
 obj/
+
+# input is too big to upload
 input/
+
+# ignore all hidden files except .gitignore
+.*
+!/.gitignore
+
