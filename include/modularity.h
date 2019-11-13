@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include "./network.h"
 
+#include <omp.h>
+
+#define NUM_SPLIT 100
+
 using namespace std;
 
 bool belongs_to_community(node_id u, community c) { return find(c.begin(), c.end(), u) != c.end(); }
@@ -28,8 +32,10 @@ weight weight_from_node_to_community(node_id u, community c, network net) {
   vector<pair<node_id, weight>> neighbors = net[u];
   // search if the neighbors of u belong to community; if so add the weight of
   // the edge to the total sum
-  for (vector<pair<node_id, weight>>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
+  #pragma omp parallel for shared(sum) schedule(static, NUM_SPLIT)
+  for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
     if (belongs_to_community(it->first, c)) {
+      #pragma omp atomic update
       sum += it->second;
     }
   }
@@ -50,10 +56,12 @@ weight weight_of_community(community c, network net) {
 weight weight_of_network(network net) {
   weight sum = 0;
 
-  for (network::iterator it = net.begin(); it != net.end(); ++it) {
+  #pragma omp parallel for shared(net, sum) schedule(static, NUM_SPLIT)	
+  for (auto it = net.begin(); it < net.end(); ++it) {
     vector<pair<node_id, weight>> neighbors = *it;
     // add the weight of the neighbors to the total sum
     for (vector<pair<node_id, weight>>::iterator j = neighbors.begin(); j != neighbors.end(); ++j) {
+      #pragma omp atomic update
       sum += j->second;
     }
   }
@@ -66,10 +74,14 @@ weight volume_of_node(node_id u, network net) {
 
   // TODO check if u < n
   vector<pair<node_id, weight>> neighbors = net[u];
-  for (vector<pair<node_id, weight>>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
+  #pragma omp parallel for shared(neighbors, sum) schedule(static, NUM_SPLIT) 
+  for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
+    #pragma omp atomic update
     sum += it->second;
     // edge to itself must be counted twice
-    if (it->first == u) sum += it->second;
+    if (it->first == u) 
+	#pragma omp atomic update
+	sum += it->second;
   }
 
   return sum;
@@ -77,8 +89,14 @@ weight volume_of_node(node_id u, network net) {
 
 std::vector<int> compute_node_volumes(int n, network net) {
 	std::vector<int> volumes;
+	#pragma omp parallel for ordered shared(volumes) schedule(static, NUM_SPLIT) 
 	for (int i=0; i<n; i++) {
-		volumes.push_back(volume_of_node(i, net));
+		cout << "node: " << i << endl;
+		int v = volume_of_node(i, net);
+		#pragma omp ordered
+		{
+			volumes.push_back(v);
+		}
 	}
 	return volumes;
 
@@ -97,7 +115,9 @@ weight volume_of_community(community c, network net) {
 weight volume_of_community_plm(community c, std::vector<int> volumes) {
   weight sum = 0;
 
-  for (community::iterator it = c.begin(); it != c.end(); ++it) {
+  #pragma omp parallel for shared(sum) schedule(static, NUM_SPLIT)
+  for (auto it = c.begin(); it < c.end(); ++it) {
+    #pragma omp atomic update  
     sum += volumes[*it];
   }
 
@@ -170,6 +190,7 @@ modularity compute_modularity(communities z, network net) {
   weight weight_net = weight_of_network(net); // TODO: this doesn't change, maybe compute it only once
   cout << "weight_net: " << weight_net << endl;
 
+  
   for (communities::iterator c = z.begin(); c != z.end(); ++c) {
     weight vol_c = volume_of_community(*c, net);
     // TODO move weight_net in denominator out of the sum

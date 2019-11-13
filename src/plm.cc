@@ -4,8 +4,10 @@
 #include <omp.h>
 
 #include <map>
- 
-void print(std::vector<int> const &input)
+
+#define NUM_SPLIT 100
+
+ void print(std::vector<int> const &input)
 {
 	for (int i = 0; i <(int)(input.size()); i++) {
 		std::cout << input.at(i) << ' ';
@@ -28,11 +30,13 @@ int PLM::connected(int comm_1, int comm_2, std::vector<int> communities, std::ve
 
 	int n = communities.size();
 	int weight=0;
+	#pragma omp parallel for shared(weight,communities) schedule(static, NUM_SPLIT)
 	for (int i=0; i<n; i++) {
 		if (communities[i] == comm_1) {
  			std::vector<int> neighbors_i = adj_list[i];
 			for (int j=0; j<(int)(neighbors_i.size()); j++) {
 				if (communities[neighbors_i[j]] == comm_2) {
+					#pragma omp atomic update
  					weight+=1;
 				}
 			}
@@ -44,25 +48,29 @@ int PLM::connected(int comm_1, int comm_2, std::vector<int> communities, std::ve
 
 GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 
-	// TODO: parallel
 	GraphComm g;
 
 	std::vector<int> g_vertexes;
 	int i;
 
+	#pragma omp parallel for schedule(static, NUM_SPLIT) 
 	for (i=0; i<(*g_initial).n; i++) {
 		int c = comm[i];
+		#pragma omp critical
 		if (std::find(g_vertexes.begin(), g_vertexes.end(), c) == g_vertexes.end()) {
 			g_vertexes.push_back(c);
 		}
 	}
 	sort(g_vertexes.begin(), g_vertexes.end());
 	g.n = g_vertexes.size();
+	print(g_vertexes);
 
+	#pragma omp parallel for schedule(static, NUM_SPLIT) 
 	for (i=0; i<g.n; i++)	
 		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i)); 
 
 	network new_net;
+	#pragma omp parallel for schedule(static, NUM_SPLIT) 
 	for (i=0; i<g.n; i++) {
 		std::vector<int> neighbors_i;
 		vector<pair<node_id, weight>> v;
@@ -72,9 +80,10 @@ GraphComm PLM::coarsen(GraphComm* g_initial, std::vector<int> comm) {
 				neighbors_i.push_back(j);
 				v.push_back(make_pair(j, w));
 			}
-		}	
+		}
+		#pragma omp critical 	
 		g.adj_list.push_back(neighbors_i);
-		new_net.push_back(v);		
+		new_net.push_back(v);	
 	}
 
 	g.net = new_net;
@@ -100,6 +109,7 @@ std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_co
 
 community PLM::get_community_vector(std::vector<int> communities, int comm) {
 	community comm_vector;
+	#pragma omp parallel for shared(comm_vector) schedule(static, NUM_SPLIT)
 	for (int i=0; i<(int)(communities.size()); i++) {
 		if (communities[i] == comm)
 			comm_vector.push_back(i);
@@ -114,7 +124,7 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
 
 int PLM::ReturnCommunity(int i, int i_comm, community i_comm_vector, std::vector<int> adj_list_i, std::vector<int> communities, network net, weight w, std::vector<int> v) {
         std::unordered_map<int,float> mod_map;
-	#pragma omp parallel for
+	#pragma omp parallel for shared(mod_map) schedule(static, NUM_SPLIT)
         for (auto neighbor_it = adj_list_i.begin(); neighbor_it < adj_list_i.end(); ++neighbor_it) {
                 community n_comm_vector = get_community_vector(communities, communities[*neighbor_it]);
                 // for each v, neighbor, compute mod_diff
@@ -126,7 +136,7 @@ int PLM::ReturnCommunity(int i, int i_comm, community i_comm_vector, std::vector
 	#pragma omp declare reduction \
         (maxpair : std::pair<int, float> : omp_out=max_pair_arg(omp_out,omp_in)) \
         initializer(omp_priv = omp_orig)
-        #pragma omp parallel for shared(mod_map) reduction(maxpair:max_pair) schedule(static, 1)
+        #pragma omp parallel for shared(mod_map) reduction(maxpair:max_pair) schedule(static, NUM_SPLIT)
         for (size_t b = 0; b < mod_map.bucket_count(); b++) {
                 for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
                         max_pair = max_pair_arg(max_pair, *bi);
@@ -146,13 +156,14 @@ std::vector<int> PLM::Local_move(GraphComm graph, std::vector<int> communities) 
 	while (unstable) {
 		//print(communities);
 		unstable = 0;
-		#pragma omp parallel for shared(unstable, communities, graph, net) schedule(static, 1)
+		#pragma omp parallel for shared(unstable, communities, graph, net) schedule(static, NUM_SPLIT)
 		for (int i=0; i<graph.n; i++) {
 			int i_comm = communities[i];
 			community i_comm_vector = get_community_vector(communities, i_comm);
 			int z = ReturnCommunity(i, i_comm, i_comm_vector, graph.adj_list[i], communities, net, graph.weight_net, graph.volumes);
 			if (z != i_comm) {
 				communities[i] = z;
+				#pragma omp atomic write
 				unstable=1;
 			}
 	
@@ -166,7 +177,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 	
 
 	std::vector<int> c_singleton;
-	#pragma omp parallel for ordered schedule(static, 1) 
+	#pragma omp parallel for ordered schedule(static, NUM_SPLIT) 
 	for (int i=0; i<g.n; i++) {
 		#pragma omp ordered 
 		{ 
@@ -185,11 +196,39 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 
 }
 
+void get_weight_and_volumes(GraphComm* g) {
+	weight sum = 0;
+	network net = (*g).net;
+	std::vector<int> volumes;
+	int u=0;
+	for (auto it = net.begin(); it < net.end(); ++it) {
+		vector<pair<node_id, weight>> neighbors = *it;
+		weight vol = 0;
+		//add the weight of the neighbors to the total sum
+		for (vector<pair<node_id, weight>>::iterator j = neighbors.begin(); j != neighbors.end(); ++j) {
+			sum += j->second;
+			vol += j->second;
+			if (j->first == u)
+				vol += j->second;
+    		}	
+		volumes.push_back(vol);
+		u++;
+  	}
+    	(*g).weight_net = sum;
+	(*g).volumes = volumes;
+}
+
+
 void PLM::DetectCommunities() {
 
+	cout << "detect comm" << endl;
  	graph.net = graph.CreateNetwork(); 
-	graph.weight_net = weight_of_network(graph.net);
-	graph.volumes = compute_node_volumes(graph.n, graph.net);
+	cout << "network created" << endl;
+	//graph.weight_net = weight_of_network(graph.net);
+	get_weight_and_volumes(&graph);
+	cout << "weight: " << graph.weight_net << endl;
+	//graph.volumes = compute_node_volumes(graph.n, graph.net);
+	cout << "compute volumes" << endl;
 	graph.communities = Recursive_comm_detect(graph);
 	cout << "final communities: ";
 	print(graph.communities);
