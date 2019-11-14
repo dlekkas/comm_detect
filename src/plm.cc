@@ -109,7 +109,6 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
         std::unordered_map<int,float> mod_map;
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
                 // for each v, neighbor, compute mod_diff
-                //cout << neighbor_it->first << endl;
 		if (g.communities[i] != g.communities[neighbor_it->first]) {
                 	float m = compute_modularity_difference(i, neighbor_it->first, g);
                 	mod_map[neighbor_it->first] = m;
@@ -117,7 +116,7 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
 		}
         }
 
-	std::pair<int, float> max_pair = std::make_pair(i, -1.0);
+	std::pair<int, float> max_pair = std::make_pair(i, 0.0);
 
 	for (size_t b = 0; b < mod_map.bucket_count(); b++) {
                 for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
@@ -125,7 +124,7 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
         }
 	
 	modularity max_diff = max_pair.second;
-	if (max_diff > 0) {
+	if (max_diff > 0.0) {
 		return g.communities[max_pair.first];
 	}
 	else 

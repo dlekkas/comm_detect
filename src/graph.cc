@@ -48,7 +48,7 @@ void GraphComm::Net_init(const std::string &file_name) {
 		std::vector<pair<node_id, weight>> v;
         	for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
                         int id = *it;
-                        v.push_back(make_pair((node_id) id, 1));
+                        v.push_back(make_pair((node_id) (id-1), 1));
                 }
 		net.push_back(v);
         }

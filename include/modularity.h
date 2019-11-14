@@ -204,7 +204,7 @@ std::vector<weight> compute_all_weights(node_id i, int c, int d, GraphComm g) {
 			results[0] += it->second;
 			results[1] += g.volumes[it->first];
 		}
-		else if (g.communities[it->first] == d) {
+		if (g.communities[it->first] == d) {
 			/* .... */
 			results[2] += it->second;
 			results[3] += g.volumes[it->first];
