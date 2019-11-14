@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <sys/time.h>
+#include <omp.h>
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -13,9 +14,10 @@ int main(int argc, char* argv[]) {
 
 	/* initialize graph based on file and confirm correct parsing */
 	GraphComm test_g;
-	test_g.Init(file_name);
+	test_g.Net_init(file_name);
 	//test_g.PrintGraph();
 
+	omp_set_num_threads(1);
 	/* detect communities of graph */
 	PLM test_plm { test_g };
 	struct timeval start, end;

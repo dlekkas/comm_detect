@@ -29,6 +29,9 @@ class GraphComm {
 		/* print the adjacency list (debugging purposes) */
 		void PrintGraph();
 
+		/* initialize graph based on the input file. Create a network structure */
+		void Net_init(const std::string &file_name);
+
 		/* number of vertices */
 		int n;
 		/* number of edges */
@@ -45,6 +48,9 @@ class GraphComm {
 
 		/* turn graph into a network */
 		network CreateNetwork();
+
+		/* contains elements for each community */
+		std::map<int,std::vector<int>> comm_population;		
 
 		/* compute the total weight of the network only once + save it */
 		weight weight_net;		

@@ -32,10 +32,8 @@ weight weight_from_node_to_community(node_id u, community c, network net) {
   vector<pair<node_id, weight>> neighbors = net[u];
   // search if the neighbors of u belong to community; if so add the weight of
   // the edge to the total sum
-  #pragma omp parallel for shared(sum) schedule(static, NUM_SPLIT)
   for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
     if (belongs_to_community(it->first, c)) {
-      #pragma omp atomic update
       sum += it->second;
     }
   }
@@ -56,12 +54,10 @@ weight weight_of_community(community c, network net) {
 weight weight_of_network(network net) {
   weight sum = 0;
 
-  #pragma omp parallel for shared(net, sum) schedule(static, NUM_SPLIT)	
   for (auto it = net.begin(); it < net.end(); ++it) {
     vector<pair<node_id, weight>> neighbors = *it;
     // add the weight of the neighbors to the total sum
     for (vector<pair<node_id, weight>>::iterator j = neighbors.begin(); j != neighbors.end(); ++j) {
-      #pragma omp atomic update
       sum += j->second;
     }
   }
@@ -74,13 +70,10 @@ weight volume_of_node(node_id u, network net) {
 
   // TODO check if u < n
   vector<pair<node_id, weight>> neighbors = net[u];
-  #pragma omp parallel for shared(neighbors, sum) schedule(static, NUM_SPLIT) 
   for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
-    #pragma omp atomic update
     sum += it->second;
     // edge to itself must be counted twice
     if (it->first == u) 
-	#pragma omp atomic update
 	sum += it->second;
   }
 
@@ -89,11 +82,8 @@ weight volume_of_node(node_id u, network net) {
 
 std::vector<int> compute_node_volumes(int n, network net) {
 	std::vector<int> volumes;
-	#pragma omp parallel for ordered shared(volumes) schedule(static, NUM_SPLIT) 
 	for (int i=0; i<n; i++) {
-		cout << "node: " << i << endl;
 		int v = volume_of_node(i, net);
-		#pragma omp ordered
 		{
 			volumes.push_back(v);
 		}
@@ -115,9 +105,7 @@ weight volume_of_community(community c, network net) {
 weight volume_of_community_plm(community c, std::vector<int> volumes) {
   weight sum = 0;
 
-  #pragma omp parallel for shared(sum) schedule(static, NUM_SPLIT)
-  for (auto it = c.begin(); it < c.end(); ++it) {
-    #pragma omp atomic update  
+  for (auto it = c.begin(); it < c.end(); ++it) {  
     sum += volumes[*it];
   }
 
@@ -203,24 +191,47 @@ modularity compute_modularity(communities z, network net) {
 }
 
 
-modularity compute_modularity_difference(node_id u, community c, community d, network net, weight w, std::vector<int> volumes) {
+std::vector<weight> compute_all_weights(node_id i, int c, int d, GraphComm g) {
 
-    weight weight_net = w; 
-    weight node_vol = volumes[u];
+   std::vector<weight> results(4, 0);
+   network net = g.net;
+   vector<pair<node_id, weight>> neighbors = net[i];
 
-    c.erase(std::remove(c.begin(), c.end(), u), c.end());
-    d.erase(std::remove(d.begin(), d.end(), u), d.end());
+   for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
+	if (it->first != i) {
+		if (g.communities[it->first] == c)  {
+			/* .... */
+			results[0] += it->second;
+			results[1] += g.volumes[it->first];
+		}
+		else if (g.communities[it->first] == d) {
+			/* .... */
+			results[2] += it->second;
+			results[3] += g.volumes[it->first];
+		}
+	}
+   }	
+   return results;
 
-    weight weight_c = weight_from_node_to_community(u, c, net);
-    weight weight_d = weight_from_node_to_community(u, d, net);
+}
 
+modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
 
-    weight volume_c = volume_of_community_plm(c, volumes);
-    weight volume_d = volume_of_community_plm(d, volumes);
+    weight weight_net = g.weight_net; 
+    weight n_vol = g.volumes[n];
+
+    int c = g.communities[i];
+    int d = g.communities[n];
+
+    std::vector<weight> weight_results = compute_all_weights(i, c, d, g);
+
+    weight weight_c = weight_results[0];
+    weight weight_d = weight_results[2];
+    weight volume_c = weight_results[1];
+    weight volume_d = weight_results[3];
 
     float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
-    float  b = (1.0 * (volume_c - volume_d) * node_vol) / (2 * weight_net * weight_net);
-
+    float b = (1.0 * (volume_c - volume_d) * n_vol) / (2 * weight_net * weight_net);
 
     modularity mod_diff = a+b; 
 

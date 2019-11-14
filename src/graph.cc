@@ -27,6 +27,34 @@ void GraphComm::Init(const std::string &file_name) {
 }
 
 
+void GraphComm::Net_init(const std::string &file_name) {
+        std::ifstream ifs;
+        ifs.open(file_name, std::ios_base::in);
+        if (ifs.fail()) {
+                std::cerr << "Error opening file " << file_name << std::endl;
+                std::exit(2);
+        }
+
+        int weighted;
+        //read number of vertices and edges from 1st line of file
+        ifs >> n >> m >> weighted;
+        //read neighours from the rest lines and populate adjacency list
+        std::string tmp;
+        std::getline(ifs, tmp);
+        while (std::getline(ifs, tmp)) {
+        	std::istringstream buf(tmp);
+        	std::vector<int> line { std::istream_iterator<int>(buf),
+                              std::istream_iterator<int>()};
+		std::vector<pair<node_id, weight>> v;
+        	for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
+                        int id = *it;
+                        v.push_back(make_pair((node_id) id, 1));
+                }
+		net.push_back(v);
+        }
+}
+     
+
 void GraphComm::PrintGraph() {
 	for (int i = 0; i < n; i++) {
 		// for each node print its neighbors

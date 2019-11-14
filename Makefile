@@ -20,7 +20,7 @@ $(OUTDIR)/plm_test: $(OBJDIR)/plm_test.o $(OBJDIR)/graph.o $(OBJDIR)/plm.o
 	$(CC) $(OBJDIR)/plm_test.o $(OBJDIR)/graph.o $(OBJDIR)/plm.o -o $@ $(BOOSTFLAGS) $(OPENMPFLAGS)
 
 $(OUTDIR)/modularity_test: $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o
-	$(CC) $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS)
+	$(CC) $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS) $(OPENMPFLAGS)
 
 $(OBJDIR)/plp_test.o: $(TSTDIR)/plp_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plp.h
 	$(CC) -o $@ $(CFLAGS) $(TSTDIR)/plp_test.cc
