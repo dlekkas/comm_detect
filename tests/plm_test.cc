@@ -4,6 +4,7 @@
 #include <vector>
 #include <sys/time.h>
 #include <omp.h>
+#include <chrono>
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -12,28 +13,33 @@ int main(int argc, char* argv[]) {
 	}
 	std::string file_name = argv[1];
 
+	int threads = omp_get_max_threads();
+
+	#pragma omp parallel num_threads(threads)
+	{
+		/* Obtain thread number */
+		int tid = omp_get_thread_num();
+
+		if (tid == 0) {
+			std::cout << "algo: PLM, threads: " << omp_get_num_threads() << ", ";
+		}
+	}
+
 	/* initialize graph based on file and confirm correct parsing */
 	GraphComm test_g;
 	test_g.Net_init(file_name);
-	//test_g.PrintGraph();
 
-	omp_set_num_threads(1);
 	/* detect communities of graph */
 	PLM test_plm { test_g };
-	struct timeval start, end;
 
-        gettimeofday(&start, NULL);
+        /* benchmark time of community detection */
+	auto start = std::chrono::system_clock::now();
+	test_plm.DetectCommunities();
+	auto end = std::chrono::system_clock::now();
 
-        test_plm.DetectCommunities();
-
-        gettimeofday(&end, NULL);
-        float duration = (1.0 * end.tv_sec * 1000 + (1.0 * end.tv_usec) / 1000) - (1.0 * start.tv_sec * 1000 + (1.0 * start.tv_usec) / 1000);
-
-        cout << "Detect Communities time (in ms): " << duration << endl;
-
-
-	/* print the result to file */
-	test_plm.PrintCommunities("comm_plm.out");
+	auto total_time = std::chrono::duration_cast<
+			std::chrono::milliseconds>(end - start).count();
+	std::cout << "time (in sec) : " << total_time / 1000.0 << std::endl;
 
 	return 0;
 }

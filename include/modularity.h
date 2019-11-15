@@ -197,6 +197,7 @@ std::vector<weight> compute_all_weights(node_id i, int c, int d, GraphComm g) {
    network net = g.net;
    vector<pair<node_id, weight>> neighbors = net[i];
 
+   //TODO: parallel for(?)
    for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
 	if (it->first != i) {
 		if (g.communities[it->first] == c)  {
