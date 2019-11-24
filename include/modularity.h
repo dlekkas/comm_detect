@@ -73,7 +73,7 @@ weight volume_of_node(node_id u, network net) {
   for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
     sum += it->second;
     // edge to itself must be counted twice
-    if (it->first == u) 
+    if (it->first == u)
 	sum += it->second;
   }
 
@@ -105,7 +105,7 @@ weight volume_of_community(community c, network net) {
 weight volume_of_community_plm(community c, std::vector<int> volumes) {
   weight sum = 0;
 
-  for (auto it = c.begin(); it < c.end(); ++it) {  
+  for (auto it = c.begin(); it < c.end(); ++it) {
     sum += volumes[*it];
   }
 
@@ -178,7 +178,7 @@ modularity compute_modularity(communities z, network net) {
   weight weight_net = weight_of_network(net); // TODO: this doesn't change, maybe compute it only once
   cout << "weight_net: " << weight_net << endl;
 
-  
+
   for (communities::iterator c = z.begin(); c != z.end(); ++c) {
     weight vol_c = volume_of_community(*c, net);
     // TODO move weight_net in denominator out of the sum
@@ -211,14 +211,14 @@ std::vector<weight> compute_all_weights(node_id i, int c, int d, GraphComm g) {
 			results[3] += g.volumes[it->first];
 		}
 	}
-   }	
+   }
    return results;
 
 }
 
 modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
 
-    weight weight_net = g.weight_net; 
+    weight weight_net = g.weight_net;
     weight n_vol = g.volumes[n];
 
     int c = g.communities[i];
@@ -234,7 +234,7 @@ modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
     float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
     float b = (1.0 * (volume_c - volume_d) * n_vol) / (2 * weight_net * weight_net);
 
-    modularity mod_diff = a+b; 
+    modularity mod_diff = a+b;
 
     return mod_diff;
 }

@@ -53,7 +53,7 @@ void GraphComm::Net_init(const std::string &file_name) {
 		net.push_back(v);
         }
 }
-     
+
 
 void GraphComm::PrintGraph() {
 	for (int i = 0; i < n; i++) {
@@ -68,13 +68,13 @@ void GraphComm::PrintGraph() {
 
 network GraphComm::CreateNetwork() {
 	network net;
-    	for (vector<vector<int>>::iterator it = adj_list.begin(); it != adj_list.end(); ++it) {
-        	vector<int> v_temp = *it;
-        	vector<pair<node_id, weight>> v;
-        	for (vector<int>::iterator it2 = v_temp.begin(); it2 != v_temp.end(); ++it2) {
-            		int id = *it2;
-           	 	v.push_back(make_pair((node_id) id, 1));
-        	}
+	for (vector<vector<int>>::iterator it = adj_list.begin(); it != adj_list.end(); ++it) {
+		vector<int> v_temp = *it;
+		vector<pair<node_id, weight>> v;
+		for (vector<int>::iterator it2 = v_temp.begin(); it2 != v_temp.end(); ++it2) {
+				int id = *it2;
+			v.push_back(make_pair((node_id) id, 1));
+		}
         net.push_back(v);
 	}
 	return net;
@@ -84,4 +84,3 @@ network GraphComm::CreateNetwork() {
 // in order to evaluate the output file on modularity
 void GraphComm::ProduceResult(const std::string &file_name) {
 }
-

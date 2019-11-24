@@ -35,7 +35,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 
 	for (i=0; i<(*g_initial).n; i++) {
 		int c = comm[i];
-		
+
 		if (std::find(g_vertexes.begin(), g_vertexes.end(), c) == g_vertexes.end()) {
 			g_vertexes.push_back(c);
 		}
@@ -43,14 +43,14 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 	sort(g_vertexes.begin(), g_vertexes.end());
 	g.n = g_vertexes.size();
 
-	for (i=0; i<g.n; i++)	
-		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i)); 
+	for (i=0; i<g.n; i++)
+		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i));
 
 	network new_net;
 
 	std::vector<std::vector<int>> new_net_array(g.n, std::vector<int>(g.n, 0));
 	std::vector<int> new_volumes(g.n, 0);
-	
+
 	#pragma omp parallel for shared(new_net_array) schedule(static, NUM_SPLIT)
 	for (i=0; i<(*g_initial).n; i++) {
 		int c_i = (*g_initial).com_map[comm[i]];
@@ -60,7 +60,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 			#pragma omp atomic update
 			new_net_array[c_i][c_j] += it->second;
 		}
-		
+
 	}
 
 	#pragma omp parallel for ordered shared(new_net) schedule(static, NUM_SPLIT)
@@ -77,7 +77,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 		#pragma omp ordered
 		new_net.push_back(v);
 
-			
+
 	}
 
 	g.volumes = new_volumes;
@@ -90,7 +90,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 
 
 std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_comm) {
-	
+
 	std::vector<int> init_comm = g_initial.communities;
 	std::vector<int> new_comm(g_initial.n, 0);
 
@@ -134,13 +134,13 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
                 for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
                         max_pair = max_pair_arg(max_pair, *bi);
         }
-	
+
 	modularity max_diff = max_pair.second;
 	if (max_diff > 0.0) {
 		return g.communities[max_pair.first];
 	}
-	else 
-		return g.communities[i]; 
+	else
+		return g.communities[i];
 }
 
 
@@ -158,27 +158,27 @@ void  PLM::Local_move(GraphComm* graph) {
 				(*graph).communities[i] = z;
 				unstable=1;
 			}
-	
+
 		}
 	}
 }
 
 std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
-	
+
 
 	std::vector<int> c_singleton(g.n, 0);
-	
+
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
-	for (int i=0; i<g.n; i++) {		
-		c_singleton[i] = i; 
+	for (int i=0; i<g.n; i++) {
+		c_singleton[i] = i;
 	}
 	g.communities = c_singleton;
 	Local_move(&g);
-	
+
 	if (g.communities != c_singleton) {
 		GraphComm g_new = coarsen(&g);
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
-		g.communities = prolong(g, c_coarsened); 
+		g.communities = prolong(g, c_coarsened);
 	}
 	return g.communities;
 
@@ -186,9 +186,9 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 
 void get_weight_and_volumes(GraphComm* g) {
 	weight sum = 0;
-	std::vector<int> volumes((*g).n, 0);	
+	std::vector<int> volumes((*g).n, 0);
 	int u=0;
-	
+
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
 	for (u=0; u<(*g).n; u++) {
 		vector<pair<node_id, weight>> neighbors = g->net[u];
@@ -199,9 +199,10 @@ void get_weight_and_volumes(GraphComm* g) {
 			if (j->first == u)
 				vol += j->second;
 
-			#pragma omp atomic update  
-			sum += j->second; 
-    		}	
+			//TODO: compute it once and store somewhere my weight and add it to the volume out of the loop
+			#pragma omp atomic update
+			sum += j->second;
+    		}
 		volumes[u]=vol;
   	}
     	g->weight_net = sum;
@@ -220,7 +221,7 @@ void PLM::DetectCommunities() {
 
 }
 
-// the same for LP and Louvain. TODO: defined once 
+// the same for LP and Louvain. TODO: defined once
 void PLM::PrintCommunities(const std::string &file_name) {
 	std::ofstream ofs;
 	ofs.open(file_name, std::ios_base::out | std::ios_base::trunc);
