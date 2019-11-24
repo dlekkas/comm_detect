@@ -23,7 +23,7 @@ class PLM {
 		/* detect communities of graph */
 		void DetectCommunities();
 
-		/* used by the 'coarsen' step of PLM: checks if 2 communities should be connected at the coarsened graph */		
+		/* used by the 'coarsen' step of PLM: checks if 2 communities should be connected at the coarsened graph */
 		int connected(int comm_1, int comm_2, std::vector<int> communities, std::vector<std::vector<int>> adj_list);
 
 		/* refresh the communities of the nodes of the input graph according to the new communities found by the coarsened step */
@@ -34,14 +34,14 @@ class PLM {
 
 
 		/* do local moves for modularity gain */
-		void Local_move(GraphComm* graph); 
+		void Local_move(GraphComm* graph);
 
 		/* */
 		std::vector<int> Recursive_comm_detect(GraphComm g);
 
 		/* */
 		int ReturnCommunity(int i, GraphComm g);
-		
+
 
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
@@ -52,6 +52,27 @@ class PLM {
 
 		community get_community_vector(std::vector<int> communities, int comm);
 
+};
+
+
+class PLM_MPI{
+
+    public:
+        /* graph on which PLM_MPI will be applied */
+        GraphComm graph;
+
+        PLM_MPI(GraphComm &init_graph): graph(init_graph) {};
+
+        ~PLM_MPI() {};
+
+        void DetectCommunities(int world_rank, int world_size);
+
+        std::vector<int> Recursive_comm_detect(GraphComm g, int n);
+
+        /* do local moves for modularity gain */
+		void Local_move(GraphComm* graph);
+
+		int ReturnCommunity(int i, GraphComm g);
 
 };
 

@@ -19,6 +19,7 @@ std::pair <int, int> max_with_arg (std::pair <int, int> r, std::pair <int, int> 
 }
 
 int PLP::dominant_label(int node) {
+	//TODO: Replace the frequency array with an array of sum
 	std::unordered_map<int,int> label_freq;
 
 	std::vector<int> neighbors = graph.adj_list[node];
