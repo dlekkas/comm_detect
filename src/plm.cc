@@ -106,30 +106,50 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
         return (n.second >= r.second) ? n : r;
 }
 
-int PLM::ReturnCommunity(int i, GraphComm g) {
+std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g) {
 
+	//TODO: maybe convert all maps to vectors + add a mapping of communities
 	std::vector<pair<node_id, weight>> n_i = g.net[i];
-        std::unordered_map<int,float> mod_map;
-	std::vector<int> seen_communities(g.communities.size(), 0);
-	seen_communities[g.communities[i]] = 1;
+        std::unordered_map<int,float> mod_map;  // keep mod_diff
+	std::map<int, float> weights_map;
+	std::vector<float> volumes(g.n, 0);	
+	std::vector<int> seen_comm(g.n, 0);
 
-	#pragma omp parallel for shared(seen_communities) schedule(static, NUM_SPLIT)
+	for (int j=0; j<g.n; j++)
+		volumes[g.communities[j]] += g.volumes[j];
+	int c = g.communities[i];
+
+	//#pragma omp parallel for shared(seen_communities) schedule(static, NUM_SPLIT)
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
 		// TODO: compute weights for all communities in a single iteration
 		int c_n = g.communities[neighbor_it->first];
-		if (seen_communities[c_n] == 0) {
-                	mod_map[neighbor_it->first] = compute_modularity_difference(i, neighbor_it->first, g);
-			#pragma omp atomic write
-			seen_communities[c_n] = 1;
+		if (neighbor_it->first != i) {
+			if (seen_comm[c_n] == 0) {
+				weights_map[c_n] = neighbor_it->second;
+				seen_comm[c_n] = 1;
+			}
+			else 
+				weights_map[c_n] += neighbor_it->second;
 		}
         }
+	weight weight_c = weights_map[c];
+	weight volume_c = volumes[c] - g.volumes[i];
+	map<int, float>::iterator it;
 
-	std::pair<int, float> max_pair = std::make_pair(i, 0.0);
+	for (it = weights_map.begin(); it != weights_map.end(); it++ ) {
+		float a =  ((1.0 * (it->second - weight_c)) / g.weight_net);
+    		float b = (1.0 * (volume_c - volumes[it->first]) * g.volumes[i]) / (2 * g.weight_net * g.weight_net);
+		mod_map[it->first] = a+b;    
+	}
 
+	mod_map[c] = 0.0;
+	std::pair<int, float> max_pair = std::make_pair(c, 0.0);
+
+	/*
 	#pragma omp declare reduction \
 	(maxpair : std::pair<int, float> : omp_out=max_pair_arg(omp_out,omp_in)) \
 	initializer(omp_priv = omp_orig)
-	#pragma omp parallel for shared(mod_map) reduction(maxpair:max_pair) schedule(static, NUM_SPLIT)
+	#pragma omp parallel for shared(mod_map) reduction(maxpair:max_pair) schedule(static, NUM_SPLIT)*/
 	for (size_t b = 0; b < mod_map.bucket_count(); b++) {
                 for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
                         max_pair = max_pair_arg(max_pair, *bi);
@@ -141,15 +161,16 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
 void  PLM::Local_move(GraphComm* graph) {
 	int unstable = 1;
 	while (unstable) {
-		//print((*graph).communities);
-		//cout << "----------------------------" << endl;
+		print((*graph).communities);
+		cout << "----------------------------" << endl;
 		unstable = 0;
 		#pragma omp parallel for schedule(static, NUM_SPLIT)
 		for (int i=0; i<(*graph).n; i++) {
 			int i_comm = (*graph).communities[i];
-			int z = ReturnCommunity(i, *graph);
-			if (z != i_comm) { // TODO: change iff the total modularity is optimized!
-				(*graph).communities[i] = z;
+			std::pair<int, float> res = ReturnCommunity(i, *graph);
+			if (res.first != i_comm) { // TODO: change iff the total modularity is optimized!
+				(*graph).communities[i] = res.first;
+				#pragma omp atomic write
 				unstable=1;
 			}
 
@@ -184,6 +205,7 @@ void get_weight_and_volumes(GraphComm* g) {
 	for (u=0; u<(*g).n; u++) {
 		vector<pair<node_id, weight>> neighbors = g->net[u];
 		weight vol = 0;
+		weight my_weight=0;
 		//add the weight of the neighbors to the total sum
 		for (vector<pair<node_id, weight>>::iterator j = neighbors.begin(); j != neighbors.end(); ++j) {
 			vol += j->second;
@@ -206,7 +228,7 @@ void PLM::DetectCommunities() {
 	cout << "weight: " << graph.weight_net << endl;
 	graph.communities = Recursive_comm_detect(graph);
 	//cout << "final communities: ";
-	//print(graph.communities);
+	print(graph.communities);
 
 }
 
