@@ -7,6 +7,7 @@
 -> to run with openmp:
 * export LD_LIBRARY_PATH=/cluster/apps/gcc/6.3.0/lib64/:$LD_LIBRARY_PATH
   export OMP_NUM_THREADS = x
+  export OMP_NESTED=TRUE
   bsub -n <number of cores> <file to run> <arguments>
 
 -> to connect to the node a job is running:
