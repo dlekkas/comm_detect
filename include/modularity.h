@@ -191,48 +191,52 @@ modularity compute_modularity(communities z, network net) {
 }
 
 
-std::vector<weight> compute_all_weights(node_id i, int c, int d, GraphComm g) {
+std::vector<weight> compute_weights(node_id i, int c, int d, GraphComm g) {
 
-   std::vector<weight> results(4, 0);
+   std::vector<weight> results(2, 0);
    network net = g.net;
    vector<pair<node_id, weight>> neighbors = net[i];
 
-   //TODO: parallel for(?)
    for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
 	if (it->first != i) {
 		if (g.communities[it->first] == c)  {
 			/* .... */
 			results[0] += it->second;
-			results[1] += g.volumes[it->first];
 		}
 		if (g.communities[it->first] == d) {
 			/* .... */
-			results[2] += it->second;
-			results[3] += g.volumes[it->first];
+			results[1] += it->second;
 		}
 	}
    }
    return results;
-
 }
 
 modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
 
     weight weight_net = g.weight_net;
-    weight n_vol = g.volumes[n];
-
+    weight i_vol = g.volumes[i];
     int c = g.communities[i];
     int d = g.communities[n];
 
-    std::vector<weight> weight_results = compute_all_weights(i, c, d, g);
+    weight volume_c = 0;
+    weight volume_d = 0;
+    
+    for (int j=0; j<g.n; j++)
+	if (j != i) {
+		if (g.communities[j] == c)
+			volume_c += g.volumes[j];
+		else if (g.communities[j] == d)
+			volume_d += g.volumes[j];
+	}
+
+    std::vector<weight> weight_results = compute_weights(i, c, d, g);
 
     weight weight_c = weight_results[0];
-    weight weight_d = weight_results[2];
-    weight volume_c = weight_results[1];
-    weight volume_d = weight_results[3];
+    weight weight_d = weight_results[1];
 
     float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
-    float b = (1.0 * (volume_c - volume_d) * n_vol) / (2 * weight_net * weight_net);
+    float b = (1.0 * (volume_c - volume_d) * i_vol) / (2 * weight_net * weight_net);
 
     modularity mod_diff = a+b;
 
