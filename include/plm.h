@@ -40,7 +40,7 @@ class PLM {
 		std::vector<int> Recursive_comm_detect(GraphComm g);
 
 		/* */
-		int ReturnCommunity(int i, GraphComm g);
+		std::pair<int,float> ReturnCommunity(int i, GraphComm g);
 
 
 		/* Resulting communities are printed in the format specified by the

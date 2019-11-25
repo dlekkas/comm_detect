@@ -134,13 +134,7 @@ int PLM::ReturnCommunity(int i, GraphComm g) {
                 for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
                         max_pair = max_pair_arg(max_pair, *bi);
         }
-
-	modularity max_diff = max_pair.second;
-	if (max_diff > 0.0) {
-		return g.communities[max_pair.first];
-	}
-	else
-		return g.communities[i];
+	return max_pair;
 }
 
 
@@ -167,14 +161,12 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 
 
 	std::vector<int> c_singleton(g.n, 0);
-
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
 	for (int i=0; i<g.n; i++) {
 		c_singleton[i] = i;
 	}
 	g.communities = c_singleton;
 	Local_move(&g);
-
 	if (g.communities != c_singleton) {
 		GraphComm g_new = coarsen(&g);
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
@@ -186,9 +178,8 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 
 void get_weight_and_volumes(GraphComm* g) {
 	weight sum = 0;
-	std::vector<int> volumes((*g).n, 0);
-	int u=0;
-
+	std::vector<int> volumes((*g).n, 0);	
+	node_id u=0;
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
 	for (u=0; u<(*g).n; u++) {
 		vector<pair<node_id, weight>> neighbors = g->net[u];
@@ -197,14 +188,12 @@ void get_weight_and_volumes(GraphComm* g) {
 		for (vector<pair<node_id, weight>>::iterator j = neighbors.begin(); j != neighbors.end(); ++j) {
 			vol += j->second;
 			if (j->first == u)
-				vol += j->second;
-
-			//TODO: compute it once and store somewhere my weight and add it to the volume out of the loop
-			#pragma omp atomic update
-			sum += j->second;
-    		}
-		volumes[u]=vol;
-  	}
+				my_weight = j->second;
+    		}	
+		volumes[u]=vol + my_weight;
+		#pragma omp atomic update
+		sum += vol;
+    	}
     	g->weight_net = sum;
 	g->volumes = volumes;
 }
