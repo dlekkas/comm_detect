@@ -75,6 +75,9 @@ class PLM_MPI{
         /* do local moves for modularity gain */
 		void Local_move(GraphComm *graph, int world_rank, int world_size);
 
+		/* refresh the communities of the nodes of the input graph according to the new communities found by the coarsened step */
+		int *prolong(GraphComm g_initial, int *coarsened_comm);
+
 		//TODO: move it to the GraphComm class
 		int *GetAdjacencyMatrix(GraphComm* g);
 

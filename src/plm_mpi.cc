@@ -58,11 +58,10 @@ GraphComm PLM_MPI::coarsen(GraphComm *g_initial, int world_rank, int world_size)
         new_n = g_vertexes.size();
 
         // store the mapping of previous nodes to new ones (useful for prolong)
-        // e.g. we have from the previous graph communities 2, 5 survived
-        // now we translate these to 1, 2 respectively. So 2 of old graph -> 1 of new
-        // and 5 of old graph -> 2 of new
-        // see if this is possible
-        for (int i = 0; i < new_n; i++)
+        // e.g. we have from the initial graph communities 2, 5 survived; so
+        // now we translate these to 1, 2 respectively. So 2 of initial graph -> 1 of new
+        // and 5 of initial graph -> 2 of new
+        for (int i = 0; i < n; i++)
             communities_map_array[g_vertexes[i]] = i;
     }
 
@@ -99,12 +98,12 @@ GraphComm PLM_MPI::coarsen(GraphComm *g_initial, int world_rank, int world_size)
     cout << "node_offset: " << node_offset << endl;
 
     for (int i = node_offset; i < nodes_per_proc + node_offset; i++) {
-        int c_i = (*g_initial).com_map_array[communities[i]];
+        int c_i = communities_map_array[communities[i]];
         int* neighbors = &(network_initial[i * n]);
         for (int j = 0; j < g_initial->n; j++) {
             int weight_i_j = neighbors[j];
-            if (weight_i_j != 0){
-                int c_j = (*g_initial).com_map_array[communities[j]];
+            if (weight_i_j != 0) {
+                int c_j = communities_map_array[communities[j]];
                 new_partial_network[c_i * new_n + c_j] += weight_i_j;
             }
         }
@@ -162,15 +161,16 @@ GraphComm PLM_MPI::coarsen(GraphComm *g_initial, int world_rank, int world_size)
 }
 
 
-std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_comm) {
+int *PLM_MPI::prolong(GraphComm g_initial, int *coarsened_comm) {
 
-    std::vector<int> init_comm = g_initial.communities;
-    std::vector<int> new_comm(g_initial.n, 0);
+    int n_initial  = g_initial.n;
+    int *init_comm = g_initial.communities_array;
+    int *new_comm = (int *) malloc(n_initial * sizeof(int));
+    int *communities_map = g_initial.com_map_array;
 
-    // #pragma omp parallel for schedule(static, NUM_SPLIT)
-    for (int i=0; i<g_initial.n; i++) {
-        int i_comm = init_comm[i];
-        new_comm[i] = coarsened_comm[g_initial.com_map[i_comm]];
+    #pragma omp parallel for schedule(static, NUM_SPLIT)
+    for (int i = 0; i < n_initial; i++) {
+        new_comm[i] = coarsened_comm[communities_map[init_comm[i]]];
     }
     return new_comm;
 }
@@ -240,7 +240,6 @@ int *PLM_MPI::GetAdjacencyMatrix(GraphComm* g) {
 void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
 
     int n            = graph->n;
-    int *network     = graph->adj_matrix;
     int *communities = graph->communities_array;
 
     int rem = n % world_size; // nodes remaining after division among processes
@@ -314,7 +313,7 @@ int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size)
     if (!equal) {
         GraphComm g_new = coarsen(&g, world_rank, world_size);
         int *c_coarsened = Recursive_comm_detect(g_new, world_rank, world_size);
-        // g.communities = prolong(g, c_coarsened);
+        g.communities_array = prolong(g, c_coarsened);
     }
 
     return g.communities_array;
