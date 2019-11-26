@@ -426,7 +426,7 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
         cout << "world_size: " << world_size << endl;
     }
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    graph.n =- n;
+    graph.n = n;
 
     int *network = (int *) malloc (n * n * sizeof(int));
     graph.adj_matrix = network;
