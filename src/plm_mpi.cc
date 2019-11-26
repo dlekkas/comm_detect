@@ -4,6 +4,7 @@
 
 #include <mpi.h>
 #include <map>
+#include <string.h>
 
 #define NUM_SPLIT 100
 
@@ -166,7 +167,7 @@ std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_co
     std::vector<int> init_comm = g_initial.communities;
     std::vector<int> new_comm(g_initial.n, 0);
 
-    #pragma omp parallel for schedule(static, NUM_SPLIT)
+    // #pragma omp parallel for schedule(static, NUM_SPLIT)
     for (int i=0; i<g_initial.n; i++) {
         int i_comm = init_comm[i];
         new_comm[i] = coarsened_comm[g_initial.com_map[i_comm]];
@@ -218,10 +219,13 @@ int PLM_MPI::ReturnCommunity(int i, int n, int* network, GraphComm g) {
 
 int *PLM_MPI::GetAdjacencyMatrix(GraphComm* g) {
 
+    //this function is called only by one MPI node
     int n = g->n;
 
-    // calloc in order to zero-initialize
-    int *network = (int *) calloc(n*n, sizeof(int));
+    int *network = g->adj_matrix;
+    // zero-initialize
+    memset(network, 0, n * n * sizeof(*network));
+
     for (int u = 0; u < n; u++)
         for (auto it = (g->net[u]).begin() ; it != (g->net[u]).end(); ++it)
             network[u * n + it->first] = it->second;
@@ -265,7 +269,6 @@ void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
         //print((*graph).communities);
         //cout << "----------------------------" << endl;
         partial_unstable = 0;
-        #pragma omp parallel for schedule(static, NUM_SPLIT)
         for (int i = node_offset; i < nodes_per_proc + node_offset; i++) {
             int i_comm = communities[i];
             int z = ReturnCommunity(i, n, network, *graph);
@@ -292,10 +295,12 @@ int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size)
         c_singleton[i] = i;
     }
 
-    int *communities = c_singleton;
+    g.communities_array = c_singleton;
     Local_move(&g, world_rank, world_size);
 
+    int *communities = g.communities_array;
     bool equal = true;
+    //TODO: maybe parallelize it if n > some number
     for (int i = 0; i < n; i++) {
         if (communities[i] != c_singleton[i]) {
             equal = false;
@@ -304,9 +309,8 @@ int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size)
     }
 
     if (!equal) {
-        g.n = n;
         GraphComm g_new = coarsen(&g, world_rank, world_size);
-        // std::vector<int> c_coarsened = Recursive_comm_detect(g_new, world_rank, world_size);
+        int *c_coarsened = Recursive_comm_detect(g_new, world_rank, world_size);
         // g.communities = prolong(g, c_coarsened);
     }
 
@@ -422,8 +426,10 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
         cout << "world_size: " << world_size << endl;
     }
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    graph.n =- n;
 
-    int *network = NULL;
+    int *network = (int *) malloc (n * n * sizeof(int));
+    graph.adj_matrix = network;
     if (world_rank == 0) {
         network = GetAdjacencyMatrix(&graph);
 
@@ -438,7 +444,6 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
     }
 
     MPI_Bcast(network, n * n, MPI_INT, 0, MPI_COMM_WORLD);
-    graph.adj_matrix = network;
 
     get_weight_and_volumes(&graph, n, world_rank, world_size, comm);
     if (world_rank == 0)
