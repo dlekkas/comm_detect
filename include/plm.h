@@ -78,7 +78,7 @@ class PLM_MPI{
 		//TODO: move it to the GraphComm class
 		int *GetAdjacencyMatrix(GraphComm* g);
 
-		int ReturnCommunity(int i, int n, int *network, GraphComm g);
+		int ReturnCommunity(int i, GraphComm g);
 
 };
 

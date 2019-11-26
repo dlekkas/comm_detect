@@ -179,7 +179,10 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
         return (n.second >= r.second) ? n : r;
 }
 
-int PLM_MPI::ReturnCommunity(int i, int n, int* network, GraphComm g) {
+int PLM_MPI::ReturnCommunity(int i, GraphComm g) {
+
+    int n = g.n;
+    int *network = g.adj_matrix;
 
     int *n_i_arr = &(network[i*n]);
     std::vector<pair<node_id, weight>> n_i;
@@ -190,12 +193,12 @@ int PLM_MPI::ReturnCommunity(int i, int n, int* network, GraphComm g) {
     }
 
     std::unordered_map<int,float> mod_map;
-    std::vector<int> seen_communities(g.communities.size(), 0);
-    seen_communities[g.communities[i]] = 1;
+    std::vector<int> seen_communities(g.n, 0);
+    seen_communities[g.communities_array[i]] = 1;
 
     for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
         // TODO: compute weights for all communities in a single iteration
-        int c_n = g.communities[neighbor_it->first];
+        int c_n = g.communities_array[neighbor_it->first];
         if (seen_communities[c_n] == 0) {
             mod_map[neighbor_it->first] = compute_modularity_difference(i, neighbor_it->first, g);
             seen_communities[c_n] = 1;
@@ -211,10 +214,10 @@ int PLM_MPI::ReturnCommunity(int i, int n, int* network, GraphComm g) {
 
     modularity max_diff = max_pair.second;
     if (max_diff > 0.0) {
-        return g.communities[max_pair.first];
+        return g.communities_array[max_pair.first];
     }
     else
-        return g.communities[i];
+        return g.communities_array[i];
 }
 
 int *PLM_MPI::GetAdjacencyMatrix(GraphComm* g) {
@@ -271,7 +274,7 @@ void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
         partial_unstable = 0;
         for (int i = node_offset; i < nodes_per_proc + node_offset; i++) {
             int i_comm = communities[i];
-            int z = ReturnCommunity(i, n, network, *graph);
+            int z = ReturnCommunity(i, *graph);
             if (z != i_comm) { // TODO: change iff the total modularity is optimized!
                 partial_communities[i - node_offset] = z;
                 partial_unstable = 1;
