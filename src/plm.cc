@@ -9,7 +9,7 @@
 
  void print(std::vector<int> const &input)
 {
-	for (int i = 0; i <(int)(input.size()); i++) {
+	for (int i = 0; i < ((int) input.size()); i++) {
 		std::cout << input.at(i) << ' ';
 	}
 	std::cout << '\n';
@@ -125,24 +125,24 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 
         threads = std::min(comm_size, threads);
         std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(comm_size, 0));
-	
+
 	/* shared */
-	std::vector<float> volumes(comm_size, 0);	
+	std::vector<float> volumes(comm_size, 0);
 	std::vector<int> seen_comm(comm_size, 0);
 	std::vector<pair<int, float>> results(threads, std::make_pair(c, 0.0)); /* each thread will write the best result it will find*/
 
 	/* calculate volumes for all communties */
 	//TODO: can we do it better?
-	for (j=0; j<g.n; j++) 
+	for (j=0; j<g.n; j++)
 		volumes[g.communities[j]] += g.volumes[j];
 
 	/* iterate once over all neighbors and compute weights from i to all communities.
 	   Update the weights for all threads */
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
 		int c_n = g.communities[neighbor_it->first];
-		if (neighbor_it->first != i) {
+		if ((int) neighbor_it->first != i) {
 			if (seen_comm[c_n] == 0) {
-				for (j=0; j<threads; j++) 
+				for (j=0; j<threads; j++)
 					weights_per_thread[j][c_n] = neighbor_it->second;
 				seen_comm[c_n] = 1;
 			}
@@ -152,33 +152,33 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 			}
 		}
         }
-	#pragma omp parallel num_threads(threads) 
+	#pragma omp parallel num_threads(threads)
 	{
 	    /* Obtain thread number */
 	    int tid = omp_get_thread_num();
 	    cout << "My id is: " << tid << endl;
 	    std::vector<int> t_weights = weights_per_thread[tid];
-	    std::vector<float> t_mod(comm_size, 0.0); 
+	    std::vector<float> t_mod(comm_size, 0.0);
 	    weight weight_c = t_weights[c];
 	    weight volume_c = volumes[c] - g.volumes[i];
-	
+
             /* find the id of communities that this thread will check */
-	    std::vector<int> comm_to_check; 
+	    std::vector<int> comm_to_check;
 	    int c_number = tid;
 	    while (c_number < comm_size) {
                 comm_to_check.push_back(c_number);
 		c_number += threads;
-	    }	
+	    }
 
 	    print(comm_to_check);
-	
-	    
+
+
 	    for (std::vector<int>::iterator it = comm_to_check.begin() ; it != comm_to_check.end(); ++it) {
 	       // compute difference in modularity for this community
                 float a =  ((1.0 * (t_weights[*it] - weight_c)) / g.weight_net);
     	        float b = (1.0 * (volume_c - volumes[*it]) * g.volumes[i]) / (2 * g.weight_net * g.weight_net);
 		t_mod[j] = a + b;
-	    }	   
+	    }
 	    print_f(t_mod);
 	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
 	    for (int k=0; k<comm_size; k++)
@@ -187,36 +187,36 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 			max_pair.second = t_mod[k];
 		}
 
-	    cout << "found: " << max_pair.second << endl; 	
+	    cout << "found: " << max_pair.second << endl;
 	    results[tid] = max_pair;
-	
+
 	}
-	
+
 	std::pair<int, float> max_pair = std::make_pair(c, 0.0);
         for (j=0; j<threads; j++) {
 		if (results[j].second > max_pair.second)
 			max_pair = results[j];
 	}
-		
+
 	return max_pair;
 }
 
 std::map<int, int> PLM::Map_communities(GraphComm g) {
 
-
 	std::vector<int> comms;
-        std::map<int,int> com_map;
+	std::map<int,int> com_map;
 	for (int i=0; i<g.n; i++) {
-                int c = g.communities[i];
+		int c = g.communities[i];
 
-                if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
-                        comms.push_back(c);
-                }
-        }
-        sort(comms.begin(), comms.end());
+		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
+			comms.push_back(c);
+		}
+	}
+	sort(comms.begin(), comms.end());
 
-        for (int i=0; i<comms.size(); i++)
-                com_map.insert(std::pair<int,int>(comms[i], i));
+	for (int i=0; i < (int) comms.size(); i++)
+		com_map.insert(std::pair<int,int>(comms[i], i));
+
 	return com_map;
 
 }
@@ -269,10 +269,10 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 
 void get_weight_and_volumes(GraphComm* g) {
 	weight sum = 0;
-	std::vector<int> volumes((*g).n, 0);	
-	node_id u=0;
+	std::vector<int> volumes(g->n, 0);
+	node_id u = 0;
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
-	for (u=0; u<(*g).n; u++) {
+	for (u = 0; u < (node_id) g->n; u++) {
 		vector<pair<node_id, weight>> neighbors = g->net[u];
 		weight vol = 0;
 		weight my_weight=0;
@@ -281,7 +281,7 @@ void get_weight_and_volumes(GraphComm* g) {
 			vol += j->second;
 			if (j->first == u)
 				my_weight = j->second;
-    		}	
+		}
 		volumes[u]=vol + my_weight;
 		#pragma omp atomic update
 		sum += vol;

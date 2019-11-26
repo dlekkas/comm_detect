@@ -74,21 +74,21 @@ weight volume_of_node(node_id u, network net) {
     sum += it->second;
     // edge to itself must be counted twice
     if (it->first == u)
-	sum += it->second;
+    sum += it->second;
   }
 
   return sum;
 }
 
 std::vector<int> compute_node_volumes(int n, network net) {
-	std::vector<int> volumes;
-	for (int i=0; i<n; i++) {
-		int v = volume_of_node(i, net);
-		{
-			volumes.push_back(v);
-		}
-	}
-	return volumes;
+    std::vector<int> volumes;
+    for (int i=0; i<n; i++) {
+        int v = volume_of_node(i, net);
+        {
+            volumes.push_back(v);
+        }
+    }
+    return volumes;
 
 }
 
@@ -113,26 +113,26 @@ weight volume_of_community_plm(community c, std::vector<int> volumes) {
 }
 
 communities communities_from_file(const std::string &file_name) {
-	std::ifstream ifs;
-	ifs.open(file_name, std::ios_base::in);
-	if (ifs.fail()) {
-		std::cerr << "Error opening file " << file_name << std::endl;
-		std::exit(2);
-	}
+    std::ifstream ifs;
+    ifs.open(file_name, std::ios_base::in);
+    if (ifs.fail()) {
+        std::cerr << "Error opening file " << file_name << std::endl;
+        std::exit(2);
+    }
 
   std::unordered_map<node_id, vector<node_id>> comms_map;
-	std::string tmp;
+    std::string tmp;
 
   // fill a map that contains the participants of each community
   // the key of the map is the label of the community
   node_id i = 0;
   while (std::getline(ifs, tmp)) {
     node_id c = stoi(tmp);
-		comms_map[c].push_back(i);
+        comms_map[c].push_back(i);
     i++;
-	}
+    }
 
-	communities comm_list;
+    communities comm_list;
 
   for (auto it: comms_map) {
     vector<node_id> participants_of_community;
@@ -147,23 +147,23 @@ communities communities_from_file(const std::string &file_name) {
 
 void print_communities(communities cs) {
 
-  for (auto i = cs.begin(); i != cs.end(); ++i) {
-		// for each node print its neighbors
-		std::cout << "Community[" << i - cs.begin() << "] = ";
-		for (auto j = i->begin(); j != i->end(); j++) {
-			std::cout << *j << " ";
-		}
-		std::cout << std::endl;
-	}
+    for (auto i = cs.begin(); i != cs.end(); ++i) {
+        // for each node print its neighbors
+        std::cout << "Community[" << i - cs.begin() << "] = ";
+        for (auto j = i->begin(); j != i->end(); j++) {
+            std::cout << *j << " ";
+        }
+        std::cout << std::endl;
+    }
 }
 
 void print_network(network net) {
   for (auto i = net.begin(); i != net.end(); ++i) {
-		// for each node print its neighbors
+    // for each node print its neighbors
     auto pos = i - net.begin() ;
     std::cout << "Node[" << pos << "] = ";
     for (auto j = i->begin(); j != i->end(); j++) {
-			std::cout << "(" << j->first << ", " << j->second << ") ";
+            std::cout << "(" << j->first << ", " << j->second << ") ";
     }
     std::cout << endl;
   }
@@ -193,23 +193,24 @@ modularity compute_modularity(communities z, network net) {
 
 std::vector<weight> compute_weights(node_id i, int c, int d, GraphComm g) {
 
-   std::vector<weight> results(2, 0);
-   network net = g.net;
-   vector<pair<node_id, weight>> neighbors = net[i];
+    std::vector<weight> results(2, 0);
+    network net = g.net;
+    vector<pair<node_id, weight>> neighbors = net[i];
 
-   for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
-	if (it->first != i) {
-		if (g.communities[it->first] == c)  {
-			/* .... */
-			results[0] += it->second;
-		}
-		if (g.communities[it->first] == d) {
-			/* .... */
-			results[1] += it->second;
-		}
-	}
-   }
-   return results;
+    for (auto it = neighbors.begin(); it < neighbors.end(); ++it) {
+        if (it->first != i) {
+            if (g.communities[it->first] == c)  {
+                /* .... */
+                results[0] += it->second;
+            }
+            if (g.communities[it->first] == d) {
+                /* .... */
+                results[1] += it->second;
+            }
+        }
+    }
+
+    return results;
 }
 
 modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
@@ -221,14 +222,14 @@ modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
 
     weight volume_c = 0;
     weight volume_d = 0;
-    
+
     for (int j=0; j<g.n; j++)
-	if (j != i) {
-		if (g.communities[j] == c)
-			volume_c += g.volumes[j];
-		else if (g.communities[j] == d)
-			volume_d += g.volumes[j];
-	}
+        if (j != (int) i) {
+            if (g.communities[j] == c)
+                volume_c += g.volumes[j];
+            else if (g.communities[j] == d)
+                volume_d += g.volumes[j];
+        }
 
     std::vector<weight> weight_results = compute_weights(i, c, d, g);
 
