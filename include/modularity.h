@@ -244,4 +244,59 @@ modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
     return mod_diff;
 }
 
+std::vector<weight> compute_weights_array(node_id i, int c, int d, GraphComm g) {
+
+    std::vector<weight> results(2, 0);
+    int *net = g.adj_matrix;
+    node_id n = (node_id) g.n;
+
+    int *i_net = &(net[i * n]);
+
+    for (node_id u = 0; u < n; u++) {
+        // check if they are neighbors
+        int weight_i_u = i_net[u];
+        if (weight_i_u != 0) {
+            if (u != i) {
+                if (g.communities_array[u] == c)
+                    results[0] += weight_i_u;
+                if (g.communities_array[u] == d)
+                    results[1] += weight_i_u;
+            }
+        }
+    }
+
+    return results;
+}
+
+modularity compute_modularity_difference_array(node_id i, node_id n, GraphComm g) {
+
+    weight weight_net = g.weight_net;
+    weight i_vol = g.volumes_array[i];
+    int c = g.communities_array[i];
+    int d = g.communities_array[n];
+
+    weight volume_c = 0;
+    weight volume_d = 0;
+
+    for (int j=0; j<g.n; j++)
+        if (j != (int) i) {
+            if (g.communities_array[j] == c)
+                volume_c += g.volumes_array[j];
+            else if (g.communities_array[j] == d)
+                volume_d += g.volumes_array[j];
+        }
+
+    std::vector<weight> weight_results = compute_weights_array(i, c, d, g);
+
+    weight weight_c = weight_results[0];
+    weight weight_d = weight_results[1];
+
+    float a =  ((1.0 * (weight_d - weight_c)) / weight_net);
+    float b = (1.0 * (volume_c - volume_d) * i_vol) / (2 * weight_net * weight_net);
+
+    modularity mod_diff = a+b;
+
+    return mod_diff;
+}
+
 #endif 			// MODULARITY_H

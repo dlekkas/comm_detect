@@ -184,7 +184,7 @@ int PLM_MPI::ReturnCommunity(int i, GraphComm g) {
     int n = g.n;
     int *network = g.adj_matrix;
 
-    int *n_i_arr = &(network[i*n]);
+    int *n_i_arr = &(network[i * n]);
     std::vector<pair<node_id, weight>> n_i;
     for (int j = 0; j < n; j++)
     {
@@ -200,7 +200,7 @@ int PLM_MPI::ReturnCommunity(int i, GraphComm g) {
         // TODO: compute weights for all communities in a single iteration
         int c_n = g.communities_array[neighbor_it->first];
         if (seen_communities[c_n] == 0) {
-            mod_map[neighbor_it->first] = compute_modularity_difference(i, neighbor_it->first, g);
+            mod_map[neighbor_it->first] = compute_modularity_difference_array(i, neighbor_it->first, g);
             seen_communities[c_n] = 1;
         }
     }
@@ -280,10 +280,11 @@ void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
             }
         }
         MPI_Allreduce(&partial_unstable, &unstable, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
-        if (unstable)
+        if (unstable) {
             MPI_Allgatherv(partial_communities, send_counts[world_rank], MPI_INT, communities, send_counts, displs,
                            MPI_INT, MPI_COMM_WORLD);
-
+            // Since it is already assigned there is no need for graph.communities = communities_array
+        }
     }
 }
 
@@ -436,13 +437,13 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
         network = GetAdjacencyMatrix(&graph);
 
         cout << endl << "adjacency matrix:" << endl;
-        int n = graph.n;
-        for (int u = 0; u < n; u++) {
-            cout << u << ": ";
-            for (int i = 0; i < n; i++)
-                cout << network[u * n + i] << " ";
-            cout << endl;
-        }
+        // int n = graph.n;
+        // for (int u = 0; u < n; u++) {
+        //     cout << u << ": ";
+        //     for (int i = 0; i < n; i++)
+        //         cout << network[u * n + i] << " ";
+        //     cout << endl;
+        // }
     }
 
     MPI_Bcast(network, n * n, MPI_INT, 0, MPI_COMM_WORLD);
@@ -452,15 +453,16 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
         cout << "weight: " << graph.weight_net << endl;
 
     graph.communities_array = Recursive_comm_detect(graph, world_rank, world_size);
-    // if (world_rank == 0) {
-    //     cout << "final communities: ";
-    //     print(graph.communities);
-    // }
+    if (world_rank == 0) {
+        cout << "final communities: " << endl;
+        for (int u = 0; u < n; u++)
+            cout << "u: " << u << " -> " << graph.communities_array[u] << endl;
+    }
 
 }
 
 // the same for LP and Louvain. TODO: defined once
-void PLM::PrintCommunities(const std::string &file_name) {
+void PLM_MPI::PrintCommunities(const std::string &file_name) {
     std::ofstream ofs;
     ofs.open(file_name, std::ios_base::out | std::ios_base::trunc);
     if (ofs.fail()) {
@@ -469,6 +471,6 @@ void PLM::PrintCommunities(const std::string &file_name) {
     }
 
     for (int i = 0; i < graph.n; i++) {
-        ofs << graph.communities[i] << std::endl;
+        ofs << graph.communities_array[i] << std::endl;
     }
 }

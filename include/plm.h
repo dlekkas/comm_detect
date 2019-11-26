@@ -83,6 +83,12 @@ class PLM_MPI{
 
 		int ReturnCommunity(int i, GraphComm g);
 
+		/* Resulting communities are printed in the format specified by the
+		 * DIMACS 10th challenge (i.e each line has the community number that
+		 * corresponds to this node - line i has the community in which node i-1
+		 * belongs) */
+		void PrintCommunities(const std::string &file_name);
+
 };
 
 
