@@ -40,11 +40,20 @@ class GraphComm {
 		/* adjacency list of graph */
 		std::vector<std::vector<int>> adj_list;
 
+		/* adjacency matrix graph */
+		int *adj_matrix;
+
 		/* community of each node */
 		std::vector<int> communities;
 
+		/* used by MPI - community of each node */
+		int *communities_array;
+
 		/* compute the volume of each node only once*/
 		std::vector<int> volumes;
+
+		/* used by MPI - mapping of communities during 'coarsen' stage */
+		int *volumes_array;
 
 		/* turn graph into a network */
 		network CreateNetwork();
@@ -57,6 +66,9 @@ class GraphComm {
 
 		/* used only by PLM - mapping of communities during 'coarsen' stage */
 		std::map<int,int> com_map;
+
+		/* used only by PLM_MPI - mapping of communities during 'coarsen' stage */
+		int *com_map_array;
 
 		network net;
 
