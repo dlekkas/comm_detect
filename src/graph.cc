@@ -33,17 +33,17 @@ void GraphComm::Init(const std::string &file_name) {
         	std::vector<int> line { std::istream_iterator<int>(buf),
                               std::istream_iterator<int>()};
 		std::vector<pair<node_id, weight>> v;
-		if (weighted==0) {
-			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
-		                int id = *it;
-		                v.push_back(make_pair((node_id) (id-1), 1));
-		        }
-		}
-		else {
+		if (weighted==1) {
 			for (vector<int>::iterator it = line.begin(); it != line.end(); it+=2) {
 		                int id = *it;
 				int weight = *(it+1);
 		                v.push_back(make_pair((node_id) (id-1), weight));
+		        }
+		}
+		else {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
+		                int id = *it;
+		                v.push_back(make_pair((node_id) (id-1), 1));
 		        }
 		}
 
@@ -72,17 +72,17 @@ void GraphComm::Net_init(const std::string &file_name) {
         	std::vector<int> line { std::istream_iterator<int>(buf),
                               std::istream_iterator<int>()};
 		std::vector<pair<node_id, weight>> v;
-		if (weighted==0) {
-			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
-		                int id = *it;
-		                v.push_back(make_pair((node_id) (id-1), 1));
-		        }
-		}
-		else {
+		if (weighted==1) {
 			for (vector<int>::iterator it = line.begin(); it != line.end(); it+=2) {
 		                int id = *it;
 				int weight = *(it+1);
 		                v.push_back(make_pair((node_id) (id-1), weight));
+		        }
+		}
+		else {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
+		                int id = *it;
+		                v.push_back(make_pair((node_id) (id-1), 1));
 		        }
 		}
 
