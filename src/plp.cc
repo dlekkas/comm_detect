@@ -15,34 +15,34 @@ std::pair <int, int> max_with_arg (std::pair <int, int> r, std::pair <int, int> 
 	// r is the already reduced value
 	// n is the new value
 	// fisrt of pair is the label and second the value
-	return (n.second >= r.second) ? n : r;
+	return (n.second > r.second) ? n : r;
 }
 
 int PLP::dominant_label(int node) {
 	//TODO: Replace the frequency array with an array of sum
-	std::unordered_map<int,int> label_freq;
+	std::unordered_map<int,int> label_weights;
 
-	std::vector<int> neighbors = graph.adj_list[node];
+	std::vector<pair<node_id, weight>> neighbors = graph.net[node];
 	// https://stackoverflow.com/a/17853547
 	// parallel loops should be in the canonical form
 	#pragma omp parallel for
 	for (auto neighbor_it = neighbors.begin(); neighbor_it < neighbors.end(); ++neighbor_it)
 	{
 		#pragma omp atomic update
-		label_freq[graph.communities[*neighbor_it]]++;
+		label_weights[graph.communities[neighbor_it->first]]+=neighbor_it->second;
 	}
 
 	// https://stackoverflow.com/a/56710797
 	// parallel for on unordered map
-	int max_val = 0, dom_label = -1;
+	int max_val = 0, dom_label = graph.communities[node];
 	std::pair<int, int> max_pair = std::make_pair(dom_label, max_val);
 
 	#pragma omp declare reduction \
 	(maxpair : std::pair<int, int> : omp_out=max_with_arg(omp_out,omp_in)) \
 	initializer(omp_priv = omp_orig)
-	#pragma omp parallel for shared(label_freq) reduction(maxpair:max_pair) schedule(static, 100)
-  	for (size_t b = 0; b < label_freq.bucket_count(); b++) {
-		for (auto bi = label_freq.begin(b); bi != label_freq.end(b);bi++) {
+	#pragma omp parallel for shared(label_weights) reduction(maxpair:max_pair) schedule(static, 100)
+  	for (size_t b = 0; b < label_weights.bucket_count(); b++) {
+		for (auto bi = label_weights.begin(b); bi != label_weights.end(b);bi++) {
 			max_pair = max_with_arg(max_pair, *bi);
 		}
 
@@ -92,7 +92,7 @@ void PLP::DetectCommunities() {
 	// std::cout << "myvector contains:";
   	// std::vector<int> myvector = graph.communities;
 	// for (auto it = myvector.begin() ; it != myvector.end(); ++it)
-    // 	std::cout << ' ' << *it;
+    // 	std::cout << ' ' << *it;m
   	// std::cout << '\n';
 
 	int updated = graph.n;
@@ -108,6 +108,12 @@ void PLP::DetectCommunities() {
 
 		}
 	}
+	cout << "final communities:" << endl;
+	for (int i = 0; i < graph.n; i++) {
+		std::cout << graph.communities[i] << ' ';
+	}
+	cout << endl;
+
 
 }
 

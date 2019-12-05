@@ -252,13 +252,13 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 		c_singleton[i] = i;
 	}
 	g.communities = c_singleton;
-	//Local_move(&g);
+	Local_move(&g);
 	
-	//if (g.communities != c_singleton) {
+	if (g.communities != c_singleton) {
 		GraphComm g_new = coarsen(&g);
-		//std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
-		//g.communities = prolong(g, c_coarsened);
-	//}
+		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
+		g.communities = prolong(g, c_coarsened);
+	}
 	return g.communities;
 
 }
@@ -292,8 +292,8 @@ void PLM::DetectCommunities() {
 	get_weight_and_volumes(&graph);
 	cout << "weight: " << graph.weight_net << endl;
 	graph.communities = Recursive_comm_detect(graph);
-	//cout << "final communities: ";
-	//print(graph.communities);
+	cout << "final communities: ";
+	print(graph.communities);
 
 }
 

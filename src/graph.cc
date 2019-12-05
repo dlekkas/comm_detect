@@ -17,12 +17,38 @@ void GraphComm::Init(const std::string &file_name) {
 	// read neighours from the rest lines and populate adjacency list
 	std::string tmp;
 	std::getline(ifs, tmp);
+
+	// unweighted graphs: adj_list is ok 
+	/*
 	while (std::getline(ifs, tmp)) {
 		std::istringstream buf(tmp);
 		std::vector<int> line { std::istream_iterator<int>(buf),
 				std::istream_iterator<int>()};
 		adj_list.push_back(line);
-	}
+	}*/
+
+	// weighted graphs: you need to keep weights
+	while (std::getline(ifs, tmp)) {
+        	std::istringstream buf(tmp);
+        	std::vector<int> line { std::istream_iterator<int>(buf),
+                              std::istream_iterator<int>()};
+		std::vector<pair<node_id, weight>> v;
+		if (weighted==0) {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
+		                int id = *it;
+		                v.push_back(make_pair((node_id) (id-1), 1));
+		        }
+		}
+		else {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); it+=2) {
+		                int id = *it;
+				int weight = *(it+1);
+		                v.push_back(make_pair((node_id) (id-1), weight));
+		        }
+		}
+
+		net.push_back(v);
+        }
 
 }
 
@@ -46,10 +72,20 @@ void GraphComm::Net_init(const std::string &file_name) {
         	std::vector<int> line { std::istream_iterator<int>(buf),
                               std::istream_iterator<int>()};
 		std::vector<pair<node_id, weight>> v;
-        	for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
-                        int id = *it;
-                        v.push_back(make_pair((node_id) (id-1), 1));
-                }
+		if (weighted==0) {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); ++it) {
+		                int id = *it;
+		                v.push_back(make_pair((node_id) (id-1), 1));
+		        }
+		}
+		else {
+			for (vector<int>::iterator it = line.begin(); it != line.end(); it+=2) {
+		                int id = *it;
+				int weight = *(it+1);
+		                v.push_back(make_pair((node_id) (id-1), weight));
+		        }
+		}
+
 		net.push_back(v);
         }
 }
@@ -78,6 +114,19 @@ network GraphComm::CreateNetwork() {
         net.push_back(v);
 	}
 	return net;
+}
+
+
+void GraphComm::PrintNetwork() {
+	for (int i = 0; i < n; i++) {
+		std::cout << std::endl;
+		std::cout << "Node[" << i << "] = ";
+		vector<pair<node_id, weight>> my_neighbors = net[i]; 
+		for (auto j = my_neighbors.begin(); j != my_neighbors.end(); j++) {
+			std::cout << "node: " << j->first << ",  " << "weight: " << j->second << " | ";
+		}
+		std::cout << std::endl;
+	}
 }
 
 // TODO(dimlek): implement function to write communities to file

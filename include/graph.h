@@ -29,6 +29,9 @@ class GraphComm {
 		/* print the adjacency list (debugging purposes) */
 		void PrintGraph();
 
+		/* print the network structure (debugging purposes) */
+		void PrintNetwork();
+
 		/* initialize graph based on the input file. Create a network structure */
 		void Net_init(const std::string &file_name);
 

@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
 	/* initialize graph from file */
 	GraphComm test_g;
 	test_g.Init(file_name);
+	//test_g.PrintNetwork();
 
 	/* detect communities of graph */
 	PLP test_plp { test_g };

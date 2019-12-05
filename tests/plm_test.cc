@@ -28,6 +28,8 @@ int main(int argc, char* argv[]) {
 	/* initialize graph based on file and confirm correct parsing */
 	GraphComm test_g;
 	test_g.Net_init(file_name);
+	//test_g.PrintNetwork();
+	
 
 	/* detect communities of graph */
 	PLM test_plm { test_g };
