@@ -118,6 +118,7 @@ network GraphComm::CreateNetwork() {
 
 
 void GraphComm::PrintNetwork() {
+	std::cout << "-----" << endl;
 	for (int i = 0; i < n; i++) {
 		std::cout << std::endl;
 		std::cout << "Node[" << i << "] = ";

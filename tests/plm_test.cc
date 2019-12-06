@@ -22,6 +22,7 @@ int main(int argc, char* argv[]) {
 
 		if (tid == 0) {
 			std::cout << "algo: PLM, threads: " << omp_get_num_threads() << ", ";
+
 		}
 	}
 

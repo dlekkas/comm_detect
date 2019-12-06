@@ -7,6 +7,10 @@
 
 #define NUM_SPLIT 100
 
+//TODO: 
+// 1) experiment with number of threads for local move at 2 levels + search for nested parallelism
+// 2) check modularity
+
  void print(std::vector<int> const &input)
 {
 	for (int i = 0; i < ((int) input.size()); i++) {
@@ -32,15 +36,18 @@ for(map<int, std::vector<int>>::const_iterator it = myMap.begin(); it != myMap.e
 }
 }
 
+
 GraphComm PLM::coarsen(GraphComm* g_initial) {
 
 
 	GraphComm g;
 	std::vector<int> comm = (*g_initial).communities;
+        int i, j;
 
-	std::vector<int> g_vertexes;
-	int i, j;
-
+	g.n = *max_element(std::begin(comm), std::end(comm)) + 1;
+		
+ 	//TODO: do we need this?
+	/*std::vector<int> g_vertexes;
 	for (i=0; i<(*g_initial).n; i++) {
 		int c = comm[i];
 
@@ -49,10 +56,14 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 		}
 	}
 	sort(g_vertexes.begin(), g_vertexes.end());
-	g.n = g_vertexes.size();
+	//g.n = g_vertexes.size();
 
 	for (i=0; i<g.n; i++)
-		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i));
+		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i));*/
+
+	// create the new graph
+
+	cout << "Inside Coarsen, create a new graph with " << g.n << " nodes " << endl;
 
 	network new_net;
 
@@ -61,10 +72,10 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 
 	#pragma omp parallel for shared(new_net_array) schedule(static, NUM_SPLIT)
 	for (i=0; i<(*g_initial).n; i++) {
-		int c_i = (*g_initial).com_map[comm[i]];
+		int c_i = comm[i];
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
-			int c_j = (*g_initial).com_map[comm[it->first]];
+			int c_j = comm[it->first];
 			#pragma omp atomic update
 			new_net_array[c_i][c_j] += it->second;
 		}
@@ -105,7 +116,7 @@ std::vector<int> PLM::prolong(GraphComm g_initial, std::vector<int> coarsened_co
 	#pragma omp parallel for schedule(static, NUM_SPLIT)
 	for (int i=0; i<g_initial.n; i++) {
 		int i_comm = init_comm[i];
-		new_comm[i] = coarsened_comm[g_initial.com_map[i_comm]];
+		new_comm[i] = coarsened_comm[i_comm];
 	}
 	return new_comm;
 }
@@ -114,23 +125,22 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
         return (n.second >= r.second) ? n : r;
 }
 
+
 std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 
 	std::vector<pair<node_id, weight>> n_i = g.net[i];
 	int j, c = g.communities[i];
 
-	/* per thread */
         int threads = std::min(comm_size, omp_get_max_threads());
 	//int threads=1;
 	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(comm_size, 0));
 	
 	/* shared */
 	std::vector<int> volumes(comm_size, 0);	
-	std::vector<int> seen_comm(comm_size, 0);
 	std::vector<pair<int, float>> results(threads, std::make_pair(c, 0.0)); /* each thread will write the best result it will find*/
 
 	/* calculate volumes for all communties */
-	//TODO: can we do it better? - compute it only once
+	//TODO: can we do it better? - compute it only once at the beginning of the LocalMove and then change values
 	for (j=0; j<g.n; j++) 
 		volumes[g.communities[j]] += g.volumes[j];
 
@@ -139,21 +149,19 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
 		int c_n = g.communities[neighbor_it->first];
 		if ((int) neighbor_it->first != i) {
-			if (seen_comm[c_n] == 0) {
-				for (j=0; j<threads; j++)
-					weights_per_thread[j][c_n] = neighbor_it->second;
-				seen_comm[c_n] = 1;
-			}
-			else {
+				#pragma omp parallel for num_threads(threads)
 				for (j=0; j<threads; j++)
 					weights_per_thread[j][c_n] += neighbor_it->second;
-			}
 		}
         }
 	#pragma omp parallel num_threads(threads)
 	{
+
 	    /* Obtain thread number */
 	    int tid = omp_get_thread_num();
+	    //cout << "thread id: " << tid << endl;
+
+	    //int tid=0;
 	    std::vector<int> t_weights = weights_per_thread[tid];
 	    std::vector<float> t_mod(comm_size, 0.0);
 	    weight weight_c = t_weights[c];
@@ -188,12 +196,12 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 
 	}
 
-	std::pair<int, float> max_pair = std::make_pair(c, 0.0);
+	std::pair<int, float> max_p = std::make_pair(c, 0.0);
         for (j=0; j<threads; j++) {
-		if (results[j].second > max_pair.second)
-			max_pair = results[j];
+		if (results[j].second > max_p.second) 
+			max_p = results[j];
 	}
-	return max_pair;
+	return max_p;
 }
 
 std::map<int, int> PLM::Map_communities(GraphComm g) {
@@ -221,16 +229,19 @@ void  PLM::Local_move(GraphComm* graph) {
 
 
 	int unstable = 1;
+	int iterations=0;
 	while (unstable) {
+		//cout << "iteration:" << iterations++ << endl;
 		//print((*graph).communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		#pragma omp parallel for reduction(||: unstable)
+		#pragma omp parallel for
 		for (int i=0; i<(*graph).n; i++) {
 			int i_comm = (*graph).communities[i];
 			std::pair<int, float> res = ReturnCommunity(i, *graph, (*graph).n);
 			if (res.first != i_comm) { // TODO: change iff the total modularity is optimized!
 				(*graph).communities[i] = res.first;
+				#pragma omp atomic write
 				unstable=1;
 			}
 
@@ -253,7 +264,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm g) {
 	}
 	g.communities = c_singleton;
 	Local_move(&g);
-	
+
 	if (g.communities != c_singleton) {
 		GraphComm g_new = coarsen(&g);
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
@@ -290,10 +301,10 @@ void get_weight_and_volumes(GraphComm* g) {
 void PLM::DetectCommunities() {
 
 	get_weight_and_volumes(&graph);
-	cout << "weight: " << graph.weight_net << endl;
+	//cout << "weight: " << graph.weight_net << endl;
 	graph.communities = Recursive_comm_detect(graph);
-	cout << "final communities: ";
-	print(graph.communities);
+	//cout << "final communities: ";
+	//print(graph.communities);
 
 }
 
