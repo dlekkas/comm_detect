@@ -5,6 +5,7 @@
 #include <mpi.h>
 #include <map>
 #include <string.h>
+#include <chrono>
 
 #define NUM_SPLIT 100
 
@@ -179,10 +180,39 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
         return (n.second >= r.second) ? n : r;
 }
 
-int PLM_MPI::ReturnCommunity(int i, GraphComm g) {
+// https://www.imsc.res.in/~kabru/parapp/lecture3.pdf
+// https://stackoverflow.com/questions/21726783/scatter-a-c-vector-of-pairs-with-mpi
+
+// void Build_mpi_weight_pair(pair<int, float> w, MPI_Datatype* mytype)
+// {
+//     int array_of_blocklengths[2]={1,1};
+//     MPI_Datatype array_of_types[2]={MPI_INT, MPI_FLOAT};
+//     MPI_Aint i_addr, j_addr;
+//     MPI_Aint array_of_displacements[2]={0};
+//     MPI_Get_address(&(w.first), &i_addr);
+//     MPI_Get_address(&(w.second), &j_addr);
+//     array_of_displacements[1]=j_addr-i_addr;
+//     MPI_Type_create_struct(2,array_of_blocklengths,array_of_displacements,array_of_types,mytype);
+//     MPI_Type_commit(mytype);
+// }
+
+int PLM_MPI::ReturnCommunity(int i, GraphComm g, int comm_size, int world_rank, int world_size) {
 
     int n = g.n;
     int *network = g.adj_matrix;
+    int c = g.communities_array[i];
+
+    // each MPI thread will hold the same list of the weights per community
+	std::vector<int> weights_per_thread(comm_size, 0);
+	std::vector<int> volumes(comm_size, 0);
+
+    /* calculate volumes for all communties */
+	//TODO: can we do it better? - compute it only once
+	for (int j = 0; j < n; j++)
+		volumes[g.communities_array[j]] += g.volumes_array[j];
+
+	for (int j=0; j<g.n; j++)
+		cout << "volumes[" << j << "] :" << volumes[j] << " ";
 
     int *n_i_arr = &(network[i * n]);
     std::vector<pair<node_id, weight>> n_i;
@@ -193,31 +223,79 @@ int PLM_MPI::ReturnCommunity(int i, GraphComm g) {
     }
 
     std::unordered_map<int,float> mod_map;
-    std::vector<int> seen_communities(g.n, 0);
-    seen_communities[g.communities_array[i]] = 1;
 
     for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
         // TODO: compute weights for all communities in a single iteration
         int c_n = g.communities_array[neighbor_it->first];
-        if (seen_communities[c_n] == 0) {
-            mod_map[neighbor_it->first] = compute_modularity_difference_array(i, neighbor_it->first, g);
-            seen_communities[c_n] = 1;
+		if ((int) neighbor_it->first != i) {
+            weights_per_thread[c_n] += neighbor_it->second;
         }
     }
 
-    std::pair<int, float> max_pair = std::make_pair(i, 0.0);
+    /* Obtain thread number */
+    std::vector<float> t_mod(comm_size, 0.0);
+    weight weight_c = weights_per_thread[c];
+    weight i_vol = g.volumes_array[i];
+    weight volume_c = volumes[c] - i_vol;
+    weight n_w = g.weight_net;
 
-    for (size_t b = 0; b < mod_map.bucket_count(); b++) {
-        for (auto bi = mod_map.begin(b); bi != mod_map.end(b); bi++)
-                max_pair = max_pair_arg(max_pair, *bi);
+    /* find the id of communities that this thread will check */
+    std::vector<int> comm_to_check;
+    int c_number = world_rank;
+    while (c_number < comm_size) {
+        comm_to_check.push_back(c_number);
+        c_number += world_size;
     }
 
-    modularity max_diff = max_pair.second;
-    if (max_diff > 0.0) {
-        return g.communities_array[max_pair.first];
+    for (std::vector<int>::iterator it = comm_to_check.begin() ; it != comm_to_check.end(); ++it) {
+        // compute difference in modularity for this community
+        float a = ((1.0 * (weights_per_thread[*it] - weight_c)) / n_w);
+        float b = (1.0 * (volume_c - volumes[*it]) * i_vol) / (2 * n_w * n_w);
+		t_mod[*it] = a + b;
     }
-    else
-        return g.communities_array[i];
+    t_mod[c] = 0.0;
+
+    // pair<int, float> result = std::make_pair(c, 0.0);
+    int max_comm = c;
+	float max_mod_change = 0.0;
+
+    for (int k = 0; k < comm_size; k++)
+        if (t_mod[k] > max_mod_change) {
+            max_comm = k;
+			max_mod_change = t_mod[k];
+		}
+
+    int *results_comm = NULL;
+    float *results_mod_change = NULL;
+	// std::vector<pair<int, float>> results(world_size, std::make_pair(c, 0.0)); /* each thread will write the best result it will find*/
+
+    if (world_rank == 0) {
+        results_comm       = (int *)   malloc(world_size * sizeof(int));
+        results_mod_change = (float *) malloc(world_size * sizeof(float));
+    }
+
+    //TODO use MPI_MAXLOC
+    MPI_Gather(&max_comm, 1, MPI_INT, results_comm, world_size, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(&max_mod_change, 1, MPI_FLOAT, results_mod_change, world_size, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    int new_community;
+
+    if (world_rank == 0) {
+        float max_mod = -0.1; // At least remaining in the same community will give greater modularity difference
+        int arg_max = -1;
+        for (int j = 0; j < world_size; j++) {
+            if (results_mod_change[j] > max_mod) {
+                max_mod = results_mod_change[j];
+                arg_max = j;
+            }
+        }
+
+        new_community = results_comm[arg_max];
+	}
+
+    MPI_Bcast(&new_community, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    return new_community;
+
 }
 
 int *PLM_MPI::GetAdjacencyMatrix(GraphComm* g) {
@@ -235,6 +313,25 @@ int *PLM_MPI::GetAdjacencyMatrix(GraphComm* g) {
 
     return network;
 
+}
+
+std::map<int, int> PLM_MPI::Map_communities(GraphComm g) {
+
+	std::vector<int> comms;
+	std::map<int,int> com_map;
+	for (int i = 0; i < g.n; i++) {
+		int c = g.communities_array[i];
+
+		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
+			comms.push_back(c);
+		}
+	}
+	sort(comms.begin(), comms.end());
+
+	for (int i = 0; i < (int) comms.size(); i++)
+		com_map.insert(std::pair<int,int>(comms[i], i));
+
+	return com_map;
 }
 
 void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
@@ -267,29 +364,39 @@ void PLM_MPI::Local_move(GraphComm *graph, int world_rank, int world_size) {
 
     int partial_unstable;
     int unstable = 1;
+    int k = 0;
     while (unstable) {
+        cout << "k: " << ++k << endl;
         //print((*graph).communities);
-        //cout << "----------------------------" << endl;
         partial_unstable = 0;
         for (int i = node_offset; i < nodes_per_proc + node_offset; i++) {
             int i_comm = communities[i];
-            int z = ReturnCommunity(i, *graph);
+            int z = ReturnCommunity(i, *graph, graph->n, world_rank, world_size);
+            cout << "z: " << z << endl;
             if (z != i_comm) { // TODO: change iff the total modularity is optimized!
                 partial_communities[i - node_offset] = z;
                 partial_unstable = 1;
             }
-        }
-        MPI_Allreduce(&partial_unstable, &unstable, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
-        if (unstable) {
             MPI_Allgatherv(partial_communities, send_counts[world_rank], MPI_INT, communities, send_counts, displs,
                            MPI_INT, MPI_COMM_WORLD);
-            // Since it is already assigned there is no need for graph.communities = communities_array
         }
+        // does not work properly
+        MPI_Allreduce(&partial_unstable, &unstable, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
+        // Since it is already assigned there is no need for graph.communities = communities_array
+        // graph->communities_array = communities;
     }
+
+    std::map<int, int> com_map = Map_communities(*graph);
+	for (int i = 0; i < n; i++)
+        graph->communities_array[i] = com_map[graph->communities_array[i]];
+
+    // reduce
+
 }
 
-int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size) {
+int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size, int recursions) {
 
+    cout << "Recursive_comm_detect iteration: " << recursions << endl;
     int n = g.n;
     // TODO only world_rank == 0 should do this
     int *c_singleton = (int *) calloc(n, sizeof(int));
@@ -299,7 +406,11 @@ int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size)
     }
 
     g.communities_array = c_singleton;
+    auto start = std::chrono::system_clock::now();
     Local_move(&g, world_rank, world_size);
+	auto end = std::chrono::system_clock::now();
+	auto total_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    // cout << "Local_move took: " << total_time << "ms" << endl;
 
     int *communities = g.communities_array;
     bool equal = true;
@@ -313,7 +424,7 @@ int *PLM_MPI::Recursive_comm_detect(GraphComm g, int world_rank, int world_size)
 
     if (!equal) {
         GraphComm g_new = coarsen(&g, world_rank, world_size);
-        int *c_coarsened = Recursive_comm_detect(g_new, world_rank, world_size);
+        int *c_coarsened = Recursive_comm_detect(g_new, world_rank, world_size, recursions++);
         g.communities_array = prolong(g, c_coarsened);
     }
 
@@ -427,6 +538,7 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
     if (world_rank == 0) {
         n = graph.n;
         cout << "world_size: " << world_size << endl;
+        cout << "n: " << n << endl;
     }
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     graph.n = n;
@@ -452,11 +564,12 @@ void PLM_MPI::DetectCommunities(int world_rank, int world_size) {
     if (world_rank == 0)
         cout << "weight: " << graph.weight_net << endl;
 
-    graph.communities_array = Recursive_comm_detect(graph, world_rank, world_size);
+    graph.communities_array = Recursive_comm_detect(graph, world_rank, world_size, 0);
     if (world_rank == 0) {
-        cout << "final communities: " << endl;
+        cout << "final communities:";
         for (int u = 0; u < n; u++)
-            cout << "u: " << u << " -> " << graph.communities_array[u] << endl;
+            cout << " " << graph.communities_array[u];
+        cout << endl;
     }
 
 }

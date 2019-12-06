@@ -70,7 +70,7 @@ class PLM_MPI{
 		/* turn each community of the graph taken as argument into a supernode and create a new graph */
 		GraphComm coarsen(GraphComm *g_initial, int world_rank, int world_size);
 
-        int *Recursive_comm_detect(GraphComm g, int world_rank, int world_size);
+        int *Recursive_comm_detect(GraphComm g, int world_rank, int world_size, int recursions);
 
         /* do local moves for modularity gain */
 		void Local_move(GraphComm *graph, int world_rank, int world_size);
@@ -81,7 +81,10 @@ class PLM_MPI{
 		//TODO: move it to the GraphComm class
 		int *GetAdjacencyMatrix(GraphComm* g);
 
-		int ReturnCommunity(int i, GraphComm g);
+		int ReturnCommunity(int i, GraphComm g, int comm_size, int world_rank, int world_size);
+
+		/* */
+		std::map<int, int> Map_communities(GraphComm g);
 
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
