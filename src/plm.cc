@@ -42,67 +42,88 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 
 	GraphComm g;
 	std::vector<int> comm = (*g_initial).communities;
-        int i, j;
-
 	g.n = *max_element(std::begin(comm), std::end(comm)) + 1;
 		
- 	//TODO: do we need this?
-	/*std::vector<int> g_vertexes;
-	for (i=0; i<(*g_initial).n; i++) {
-		int c = comm[i];
-
-		if (std::find(g_vertexes.begin(), g_vertexes.end(), c) == g_vertexes.end()) {
-			g_vertexes.push_back(c);
-		}
-	}
-	sort(g_vertexes.begin(), g_vertexes.end());
-	//g.n = g_vertexes.size();
-
-	for (i=0; i<g.n; i++)
-		(*g_initial).com_map.insert(std::pair<int,int>(g_vertexes[i], i));*/
-
 	// create the new graph
 
-	cout << "Inside Coarsen, create a new graph with " << g.n << " nodes " << endl;
+	int threads=omp_get_max_threads();
+	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << g.n << " nodes " << endl;
 
-	network new_net;
-
-	std::vector<std::vector<int>> new_net_array(g.n, std::vector<int>(g.n, 0));
+	network new_net(g.n, std::vector<pair<node_id, weight>>());
 	std::vector<int> new_volumes(g.n, 0);
-
-	#pragma omp parallel for shared(new_net_array) schedule(static, NUM_SPLIT)
-	for (i=0; i<(*g_initial).n; i++) {
+	/*
+	std::vector<std::vector<int>> new_net_array(g.n, std::vector<int>(g.n, 0));
+	
+	//#pragma omp parallel for num_threads(threads)
+	for (int i=0; i<(*g_initial).n; i++) {
 		int c_i = comm[i];
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
 			int c_j = comm[it->first];
-			#pragma omp atomic update
+			//#pragma omp atomic update
 			new_net_array[c_i][c_j] += it->second;
 		}
 
 	}
 
-	#pragma omp parallel for ordered shared(new_net) schedule(static, NUM_SPLIT)
-	for (i=0; i<g.n; i++) {
+	//omp_set_nested(0);
+	#pragma omp parallel for num_threads(threads)
+	for (int i=0; i<g.n; i++) {
 		std::vector<pair<node_id, weight>> v;
-		weight i_volume = new_net_array[i][i];
-		for (j=0; j<g.n; j++) {
+		weight i_volume = new_net_array[i][i]; //edge to self counts double
+		for (int j=0; j<g.n; j++) {
 			if (new_net_array[i][j] > 0) {
 				v.push_back(make_pair(j, new_net_array[i][j]));
 				i_volume += new_net_array[i][j];
 			}
 		}
 		new_volumes[i] = i_volume;
-		#pragma omp ordered
-		new_net.push_back(v);
+		new_net[i]=v;
+	}*/
 
+	// another possible solution 
 
+	//std::vector<std::vector<std::vector<int>>> new_net_array(threads, g.n, std::vector<int>(g.n, 0)); 
+
+	std::vector<std::vector<std::vector<int>>> new_net_array(threads, std::vector<std::vector<int>>(g.n, std::vector<int>(g.n, 0))); 
+
+	#pragma omp parallel for num_threads(threads)
+	for (int i=0; i<(*g_initial).n; i++) {
+		int tid = omp_get_thread_num();
+		int c_i = comm[i];
+		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
+		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
+			int c_j = comm[it->first];
+			new_net_array[tid][c_i][c_j] += it->second;
+		}
+	}
+
+	int threads_c = std::min(g.n, omp_get_max_threads());
+	#pragma omp parallel for num_threads(threads_c)
+	for (int i=0; i<g.n; i++) {
+		std::vector<pair<node_id, weight>> v;
+		weight i_volume = 0; 
+		for (int k=0; k<g.n; k++) {
+			weight w_i_k = 0;	
+			for (int j=0; j<threads; j++) {
+				w_i_k += new_net_array[j][i][k];
+			}
+			if (w_i_k > 0) {
+				v.push_back(make_pair(k, w_i_k));
+				i_volume += w_i_k;
+			}
+			if (k==i) 
+				i_volume += w_i_k; //edge to self counts double
+		}
+		new_volumes[i] = i_volume;
+		new_net[i]=v;
 	}
 
 	g.volumes = new_volumes;
 	g.net = new_net;
 	g.weight_net = (*g_initial).weight_net; //the sum of all edges remains the same
 
+	cout << "exit coarsen" << endl;
 	return g;
 
 }
@@ -132,7 +153,6 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
 	int j, c = g.communities[i];
 
         int threads = std::min(comm_size, omp_get_max_threads());
-	//int threads=1;
 	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(comm_size, 0));
 	
 	/* shared */
@@ -230,12 +250,16 @@ void  PLM::Local_move(GraphComm* graph) {
 
 	int unstable = 1;
 	int iterations=0;
+	int threads = std::min(graph->n, omp_get_max_threads());
+	cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
+
+	//omp_set_nested(1);
 	while (unstable) {
 		//cout << "iteration:" << iterations++ << endl;
 		//print((*graph).communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		#pragma omp parallel for
+		#pragma omp parallel for num_threads(threads)
 		for (int i=0; i<(*graph).n; i++) {
 			int i_comm = (*graph).communities[i];
 			std::pair<int, float> res = ReturnCommunity(i, *graph, (*graph).n);
