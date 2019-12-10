@@ -38,7 +38,7 @@ class GraphComm {
 		/* number of vertices */
 		int n;
 		/* number of edges */
-		int m;
+		unsigned int m;
 
 		/* adjacency list of graph */
 		std::vector<std::vector<int>> adj_list;
