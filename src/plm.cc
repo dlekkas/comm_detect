@@ -10,6 +10,7 @@
 //TODO: 
 // 1) experiment with number of threads for local move at 2 levels + search for nested parallelism
 // 2) check modularity
+// 3) speed up modularity computations
 
  void print(std::vector<int> const &input)
 {
@@ -47,7 +48,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 	// create the new graph
 
 	int threads=omp_get_max_threads();
-	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << g.n << " nodes " << endl;
+	//cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << g.n << " nodes " << endl;
 
 	network new_net(g.n, std::vector<pair<node_id, weight>>());
 	std::vector<int> new_volumes(g.n, 0);
@@ -123,7 +124,7 @@ GraphComm PLM::coarsen(GraphComm* g_initial) {
 	g.net = new_net;
 	g.weight_net = (*g_initial).weight_net; //the sum of all edges remains the same
 
-	cout << "exit coarsen" << endl;
+	//cout << "exit coarsen" << endl;
 	return g;
 
 }
@@ -147,81 +148,72 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
 }
 
 
-std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm g, int comm_size) {
+std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 
-	std::vector<pair<node_id, weight>> n_i = g.net[i];
-	int j, c = g.communities[i];
 
-        int threads = std::min(comm_size, omp_get_max_threads());
-	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(comm_size, 0));
-	
+        int threads = std::min(g->n, omp_get_max_threads());
+	std::vector<pair<node_id, weight>> n_i = g->net[i];
+	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(g->n, 0));
+	int j, c=g->communities[i];	
+	int comm_size = g->n;
+
 	/* shared */
-	std::vector<int> volumes(comm_size, 0);	
+	std::vector<int> volumes = g->comm_volumes;	
 	std::vector<pair<int, float>> results(threads, std::make_pair(c, 0.0)); /* each thread will write the best result it will find*/
-
-	/* calculate volumes for all communties */
-	//TODO: can we do it better? - compute it only once at the beginning of the LocalMove and then change values
-	for (j=0; j<g.n; j++) 
-		volumes[g.communities[j]] += g.volumes[j];
 
 	/* iterate once over all neighbors and compute weights from i to all communities.
 	   Update the weights for all threads */
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
-		int c_n = g.communities[neighbor_it->first];
 		if ((int) neighbor_it->first != i) {
 				#pragma omp parallel for num_threads(threads)
 				for (j=0; j<threads; j++)
-					weights_per_thread[j][c_n] += neighbor_it->second;
+					weights_per_thread[j][g->communities[neighbor_it->first]] += neighbor_it->second;
 		}
         }
+
+	
 	#pragma omp parallel num_threads(threads)
 	{
 
-	    /* Obtain thread number */
+	    
 	    int tid = omp_get_thread_num();
 	    //cout << "thread id: " << tid << endl;
 
 	    //int tid=0;
 	    std::vector<int> t_weights = weights_per_thread[tid];
-	    std::vector<float> t_mod(comm_size, 0.0);
+	    //std::vector<float> t_mod(comm_size, 0.0);
 	    weight weight_c = t_weights[c];
-	    weight volume_c = volumes[c] - g.volumes[i];
-	    weight i_vol = g.volumes[i];
-            weight n_w = g.weight_net;    
+	    weight volume_c = volumes[c] - g->volumes[i];
+	    weight i_vol = g->volumes[i];
+            weight n_w = g->weight_net;
+
+	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
 	
             /* find the id of communities that this thread will check */
-	    std::vector<int> comm_to_check;
+
 	    int c_number = tid;
 	    while (c_number < comm_size) {
-                comm_to_check.push_back(c_number);
-		c_number += threads;
-	    }    	
-	    
-	    for (std::vector<int>::iterator it = comm_to_check.begin() ; it != comm_to_check.end(); ++it) {
 	       // compute difference in modularity for this community
 	        
-                float a =  ((1.0 * (t_weights[*it] - weight_c)) / n_w);
-    	        float b = (1.0 * (volume_c - volumes[*it]) * i_vol) / (2 * n_w * n_w);
-		t_mod[*it] = a + b;
-		
-	    }	   
-	    t_mod[c] = 0.0;
-	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
-	    for (int k=0; k<comm_size; k++)
-		if (t_mod[k] > max_pair.second) {
-			max_pair.first = k;
-			max_pair.second = t_mod[k];
+                float a =  ((1.0 * (t_weights[c_number] - weight_c)) / n_w);
+    	        float b = (1.0 * (volume_c - volumes[c_number]) * i_vol) / (2 * n_w * n_w);
+		float dmod = a + b;
+		if (dmod > max_pair.second) {
+			max_pair.first=c_number;
+			max_pair.second=dmod;
 		}
+		c_number += threads;
+	    }	   
 	    results[tid] = max_pair;
-
 	}
-
+	
 	std::pair<int, float> max_p = std::make_pair(c, 0.0);
         for (j=0; j<threads; j++) {
 		if (results[j].second > max_p.second) 
 			max_p = results[j];
 	}
 	return max_p;
+	//return std::make_pair(c, 0.0);
 }
 
 std::map<int, int> PLM::Map_communities(GraphComm g) {
@@ -251,25 +243,42 @@ void  PLM::Local_move(GraphComm* graph) {
 	int unstable = 1;
 	int iterations=0;
 	int threads = std::min(graph->n, omp_get_max_threads());
-	cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
+	//cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
 
-	//omp_set_nested(1);
+
+	// when Local Move is called, each node alone is a community
+	std::vector<int> volumes(graph->n, 0);	
+	for (int j=0; j<graph->n; j++) 
+              volumes[j] = graph->volumes[j];
+
+	graph->comm_volumes = volumes;
+
 	while (unstable) {
 		//cout << "iteration:" << iterations++ << endl;
-		//print((*graph).communities);
+		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		#pragma omp parallel for num_threads(threads)
-		for (int i=0; i<(*graph).n; i++) {
-			int i_comm = (*graph).communities[i];
-			std::pair<int, float> res = ReturnCommunity(i, *graph, (*graph).n);
-			if (res.first != i_comm) { // TODO: change iff the total modularity is optimized!
-				(*graph).communities[i] = res.first;
-				#pragma omp atomic write
-				unstable=1;
+		#pragma omp parallel for
+		for (int i=0; i<graph->n; i++) {
+			int i_comm = graph->communities[i];
+			std::pair<int, float> res = ReturnCommunity(i, graph);
+			if (res.first != i_comm) { 
+				//graph->communities[i] = res.first;
+				//#pragma omp atomic write
+				//unstable=1;
+				#pragma omp critical 
+				{
+					graph->communities[i] = res.first;
+					unstable=1;
+					graph->comm_volumes[res.first] += graph->volumes[i];
+					graph->comm_volumes[i_comm] -= graph->volumes[i]; 
+				
+				}
 			}
 
 		}
+	
+
 	}
 
         std::map<int, int> com_map = Map_communities(*graph);
@@ -329,7 +338,8 @@ void PLM::DetectCommunities() {
 	graph.communities = Recursive_comm_detect(graph);
 	//cout << "final communities: ";
 	//print(graph.communities);
-
+	//int found_comm = *std::max_element(std::begin(graph.communities), std::end(graph.communities)) + 1;
+	//cout << "found " << found_comm << " communities" << endl;
 }
 
 // the same for LP and Louvain. TODO: defined once

@@ -49,6 +49,9 @@ class GraphComm {
 		/* community of each node */
 		std::vector<int> communities;
 
+		/* volumes of communities */
+		std::vector<int> comm_volumes;
+
 		/* used by MPI - community of each node */
 		int *communities_array;
 
