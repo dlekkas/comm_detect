@@ -211,7 +211,7 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 			max_pair.first=c_number;
 			max_pair.second=dmod;
 		}
-		c_number += threads;
+		// c_number += threads;
 	    }	   
 	    results[tid] = max_pair;
 	}
