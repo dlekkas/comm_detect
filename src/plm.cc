@@ -195,8 +195,8 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 	    while (c_number < comm_size) {
 	       // compute difference in modularity for this community
 	        
-                float a =  ((1.0 * (t_weights[c_number] - weight_c)) / n_w);
-    	        float b = (1.0 * (volume_c - volumes[c_number]) * i_vol) / (2 * n_w * n_w);
+                float a =  (((float) ((t_weights[c_number] - weight_c))) / n_w);
+    	        float b = ((float) ((volume_c - volumes[c_number]) * i_vol)) / (2 * n_w * n_w);
 		float dmod = a + b;
 		if (dmod > max_pair.second) {
 			max_pair.first=c_number;
