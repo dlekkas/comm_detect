@@ -70,12 +70,6 @@ class GraphComm {
 		/* compute the total weight of the network only once + save it */
 		weight weight_net;
 
-		/* used only by PLM - mapping of communities during 'coarsen' stage */
-		std::map<int,int> com_map;
-
-		/* used only by PLM_MPI - mapping of communities during 'coarsen' stage */
-		int *com_map_array;
-
 		network net;
 
 

@@ -108,12 +108,11 @@ void PLP::DetectCommunities() {
 
 		}
 	}
-	cout << "final communities:" << endl;
-	for (int i = 0; i < graph.n; i++) {
-		std::cout << graph.communities[i] << ' ';
-	}
-	cout << endl;
-
+	// cout << "final communities:" << endl;
+	// for (int i = 0; i < graph.n; i++) {
+	// 	std::cout << graph.communities[i] << ' ';
+	// }
+	// cout << endl;
 
 }
 

@@ -69,6 +69,29 @@ def plot_speedup(results_dict, algo):
 	speedup_dict={}
 	for k in list(avg_dict.keys()):
 		speedup_dict[k] = avg_dict[1]/avg_dict[k]
+
+	speedup_dict = filter_dict(speedup_dict, 12)
+	D = collections.OrderedDict(sorted((speedup_dict.items())))
+
+	plt.plot(range(len(D)), list(D.values()), marker='o', linewidth=2)
+	plt.xticks(range(len(D)), list(D.keys()))
+	plt.xlabel("Number of cores")
+	plt.ylabel("Speedup")
+	plt.title("[Cores-Speedup Diagram]")
+	plt.savefig(fig_name)
+
+# plot a bar plot showing the average execution time
+# for different number of cores used
+def plot_speedup(results_dict, algo):
+	fig_name = algo + '-speedup.png'
+	avg_dict = {}
+	for thread_no, times in results_dict.items():
+		if len(times) != 0:
+			avg_dict[thread_no] = sum(times) / len(times)
+
+	speedup_dict={}
+	for k in list(avg_dict.keys()):
+		speedup_dict[k] = avg_dict[1]/avg_dict[k]
 	
 	speedup_dict = filter_dict(speedup_dict, 12)
 	D = collections.OrderedDict(sorted((speedup_dict.items())))
@@ -91,7 +114,3 @@ for algo in algos:
 	plot_scale_diagram(results_dict, algo)
 	#plot_speedup(results_dict, algo)
 	calculate_statistics(results_dict)
-
-
-
-
