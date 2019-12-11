@@ -1,5 +1,6 @@
 #include "../include/graph.h"
 #include "../include/plm.h"
+#include "../include/modularity.h"
 
 #include <vector>
 #include <sys/time.h>
@@ -42,7 +43,12 @@ int main(int argc, char* argv[]) {
 
 	auto total_time = std::chrono::duration_cast<
 			std::chrono::milliseconds>(end - start).count();
-	std::cout << "time (in sec) : " << total_time / 1000.0 << std::endl;
+	std::cout << "time (in sec): " << total_time / 1000.0;
+
+	modularity mod;
+	mod = compute_modularity_from_node_comm(test_plm.graph.communities, test_plm.graph.n,
+											test_g.net);
+    cout << ", modularity: " << mod << endl;
 
 	return 0;
 }

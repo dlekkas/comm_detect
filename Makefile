@@ -26,10 +26,10 @@ $(OUTDIR)/plm_test_mpi: $(OBJDIR)/plm_test_mpi.o $(OBJDIR)/plm_mpi.o # $(OBJDIR)
 $(OUTDIR)/modularity_test: $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o
 	$(CC) $(OBJDIR)/modularity_test.o $(OBJDIR)/graph.o -o $@ $(BOOSTFLAGS) $(OPENMPFLAGS)
 
-$(OBJDIR)/plp_test.o: $(TSTDIR)/plp_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plp.h
+$(OBJDIR)/plp_test.o: $(TSTDIR)/plp_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plp.h $(INCLUDEDIR)/modularity.h
 	$(CC) -o $@ $(CFLAGS) $(OPENMPFLAGS) $(TSTDIR)/plp_test.cc
 
-$(OBJDIR)/plm_test.o: $(TSTDIR)/plm_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plm.h
+$(OBJDIR)/plm_test.o: $(TSTDIR)/plm_test.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plm.h $(INCLUDEDIR)/modularity.h
 	$(CC) -o $@ $(CFLAGS) $(OPENMPFLAGS) $(TSTDIR)/plm_test.cc
 
 $(OBJDIR)/plm_test_mpi.o: $(TSTDIR)/plm_test_mpi.cc $(INCLUDEDIR)/graph.h $(INCLUDEDIR)/plm.h
