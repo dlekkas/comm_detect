@@ -16,9 +16,9 @@
 
 using namespace std;
 
-bool belongs_to_community(node_id u, community c) { return find(c.begin(), c.end(), u) != c.end(); }
+inline bool belongs_to_community(node_id u, community c) { return find(c.begin(), c.end(), u) != c.end(); }
 
-weight weight_from_node_to_community(node_id u, community c, network net) {
+inline weight weight_from_node_to_community(node_id u, community c, network net) {
   // 2 possible ways:
   // a) iterate on neighbors of u and check if they belong to community and
   // then add the weight of their edge
@@ -41,7 +41,7 @@ weight weight_from_node_to_community(node_id u, community c, network net) {
   return sum;
 }
 
-weight weight_of_community(community c, network net) {
+inline weight weight_of_community(community c, network net) {
   weight sum = 0;
 
   for (community::iterator it = c.begin(); it != c.end(); ++it) {
@@ -51,7 +51,7 @@ weight weight_of_community(community c, network net) {
   return sum;
 }
 
-weight weight_of_network(network net) {
+inline weight weight_of_network(network net) {
   weight sum = 0;
 
   for (auto it = net.begin(); it < net.end(); ++it) {
@@ -65,7 +65,7 @@ weight weight_of_network(network net) {
   return sum;
 }
 
-weight volume_of_node(node_id u, network net) {
+inline weight volume_of_node(node_id u, network net) {
   weight sum = 0;
 
   // TODO check if u < n
@@ -80,7 +80,7 @@ weight volume_of_node(node_id u, network net) {
   return sum;
 }
 
-std::vector<int> compute_node_volumes(int n, network net) {
+inline std::vector<int> compute_node_volumes(int n, network net) {
     std::vector<int> volumes;
     for (int i=0; i<n; i++) {
         int v = volume_of_node(i, net);
@@ -92,7 +92,7 @@ std::vector<int> compute_node_volumes(int n, network net) {
 
 }
 
-weight volume_of_community(community c, network net) {
+inline weight volume_of_community(community c, network net) {
   weight sum = 0;
 
   for (community::iterator it = c.begin(); it != c.end(); ++it) {
@@ -102,7 +102,7 @@ weight volume_of_community(community c, network net) {
   return sum;
 }
 
-weight volume_of_community_plm(community c, std::vector<int> volumes) {
+inline weight volume_of_community_plm(community c, std::vector<int> volumes) {
   weight sum = 0;
 
   for (auto it = c.begin(); it < c.end(); ++it) {
@@ -112,7 +112,7 @@ weight volume_of_community_plm(community c, std::vector<int> volumes) {
   return sum;
 }
 
-communities communities_from_file(const std::string &file_name) {
+inline communities communities_from_file(const std::string &file_name) {
     std::ifstream ifs;
     ifs.open(file_name, std::ios_base::in);
     if (ifs.fail()) {
@@ -145,7 +145,7 @@ communities communities_from_file(const std::string &file_name) {
   return comm_list;
 }
 
-void print_communities(communities cs) {
+inline void print_communities(communities cs) {
 
     for (auto i = cs.begin(); i != cs.end(); ++i) {
         // for each node print its neighbors
@@ -157,7 +157,7 @@ void print_communities(communities cs) {
     }
 }
 
-void print_network(network net) {
+inline void print_network(network net) {
   for (auto i = net.begin(); i != net.end(); ++i) {
     // for each node print its neighbors
     auto pos = i - net.begin() ;
@@ -172,11 +172,11 @@ void print_network(network net) {
 
 // TODO add neighbors_of_node function
 
-modularity compute_modularity(communities z, network net) {
+inline modularity compute_modularity(communities z, network net) {
   modularity mod = 0;
 
   weight weight_net = weight_of_network(net); // TODO: this doesn't change, maybe compute it only once
-  cout << "weight_net: " << weight_net << endl;
+  // cout << "weight_net: " << weight_net << endl;
 
 
   for (communities::iterator c = z.begin(); c != z.end(); ++c) {
@@ -191,7 +191,46 @@ modularity compute_modularity(communities z, network net) {
 }
 
 
-std::vector<weight> compute_weights(node_id i, int c, int d, GraphComm g) {
+inline modularity compute_modularity_from_node_comm(vector<int> communities, int n, network net) {
+  	
+  std::vector<int> comms;
+
+  for (int i = 0; i < n; i++) {
+		int c = communities[i];
+
+		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
+			comms.push_back(c);
+		}
+	}
+	sort(comms.begin(), comms.end());
+
+	std::vector<std::vector<int>> cs;
+	for (int c = 0; c < ((int) comms.size()); c++) {
+		std::vector<int> v;
+		for (int i = 0; i < n; i++)
+			if (c == communities[i])
+				v.push_back(i);
+		cs.push_back(v);
+	}
+	
+	// cout << "comms.size(): " << comms.size() << endl;
+	
+	// cout << "communities for each node:" << endl;
+	// for (int i = 0; i < ((int) communities.size()); i++) {
+	// 	std::cout << communities.at(i) << " ";
+	// }
+	// cout << endl;
+	
+	// for (auto it = cs.begin(); it < cs.end(); it++) {
+	// 	for (auto j = it->begin(); j < it->end(); j++)
+	// 		cout << *j << " ";
+	// 	cout << endl;
+	// }
+
+  return compute_modularity(cs, net);
+}
+
+inline std::vector<weight> compute_weights(node_id i, int c, int d, GraphComm g) {
 
     std::vector<weight> results(2, 0);
     network net = g.net;
@@ -213,7 +252,7 @@ std::vector<weight> compute_weights(node_id i, int c, int d, GraphComm g) {
     return results;
 }
 
-modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
+inline modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
 
     weight weight_net = g.weight_net;
     weight i_vol = g.volumes[i];
@@ -244,7 +283,7 @@ modularity compute_modularity_difference(node_id i, node_id n, GraphComm g) {
     return mod_diff;
 }
 
-std::vector<weight> compute_weights_array(node_id i, int c, int d, GraphComm g) {
+inline std::vector<weight> compute_weights_array(node_id i, int c, int d, GraphComm g) {
 
     std::vector<weight> results(2, 0);
     int *net = g.adj_matrix;
@@ -268,7 +307,7 @@ std::vector<weight> compute_weights_array(node_id i, int c, int d, GraphComm g) 
     return results;
 }
 
-modularity compute_modularity_difference_array(node_id i, node_id n, GraphComm g) {
+inline modularity compute_modularity_difference_array(node_id i, node_id n, GraphComm g) {
 
     weight weight_net = g.weight_net;
     weight i_vol = g.volumes_array[i];

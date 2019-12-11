@@ -1,5 +1,6 @@
 #include "../include/graph.h"
 #include "../include/plp.h"
+#include "../include/modularity.h"
 
 #include <omp.h>
 #include <vector>
@@ -40,10 +41,30 @@ int main(int argc, char* argv[]) {
 
 	auto total_time = std::chrono::duration_cast<
 			std::chrono::milliseconds>(end - start).count();
-	std::cout << "time: " << total_time / 1000.0 << std::endl;
+	std::cout << "time (in sec): " << total_time / 1000.0;
 
 	/* print result to file */
 	//test_plp.PrintCommunities("comm.out");
+	// for (int i = 0; i < test_plp.graph.n; i++) {
+	// 	cout << test_plp.graph.communities[i] << endl;
+	// }
+
+	std::map<int, int> com_map = test_plp.Map_communities(&(test_plp.graph));
+  	std::vector<int> cs;
+	int n = test_plp.graph.n;
+
+	for (int i = 0; i < test_plp.graph.n; i++) {
+		// cout << test_plp.graph.communities[i] << "->" << com_map[test_plp.graph.communities[i]] << endl;
+		cs.push_back(com_map[test_plp.graph.communities[i]]);
+	}
+	// for (int i = 0; i < n; i++) {
+	// 	cout << cs[i] << endl;
+	// }
+	
+	modularity mod;
+  	mod = compute_modularity_from_node_comm(cs, n,
+											test_g.net);
+    cout << ", modularity: " << mod << endl;
 
 	return 0;
 }

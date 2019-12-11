@@ -1,6 +1,7 @@
 #include "../include/plp.h"
 
 #include <omp.h>
+#include <algorithm>
 
 #define NUM_SPLIT 100
 
@@ -113,6 +114,26 @@ void PLP::DetectCommunities() {
 	// 	std::cout << graph.communities[i] << ' ';
 	// }
 	// cout << endl;
+
+}
+
+std::map<int, int> PLP::Map_communities(GraphComm *g) {
+
+	std::vector<int> comms;
+	std::map<int,int> com_map;
+	for (int i=0; i<g->n; i++) {
+		int c = g->communities[i];
+
+		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
+			comms.push_back(c);
+		}
+	}
+	sort(comms.begin(), comms.end());
+
+	for (int i=0; i < (int) comms.size(); i++)
+		com_map.insert(std::pair<int,int>(comms[i], i));
+
+	return com_map;
 
 }
 

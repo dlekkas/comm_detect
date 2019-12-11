@@ -8,7 +8,7 @@ using namespace std;
 
 // type aliases
 using modularity = double;
-using node_id = unsigned long int;
+using node_id = int;
 using weight = int;
 using network = vector<vector<pair<node_id, weight>>>;
 using community = vector<node_id>;

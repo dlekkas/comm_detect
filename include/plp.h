@@ -24,6 +24,9 @@ class PLP {
 		/* detect communities of graph */
 		void DetectCommunities();
 
+		/* normalize communities' id */
+		std::map<int, int> Map_communities(GraphComm *g);
+
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
 		 * corresponds to this node - line i has the community in which node i-1
