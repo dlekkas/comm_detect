@@ -141,26 +141,34 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
 }
 
 
+
 std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 
 
         int threads = std::min(g->n, omp_get_max_threads());
 	std::vector<pair<node_id, weight>> n_i = g->net[i];
 	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(g->n, 0));
-	int j, c=g->communities[i];	
+	int j, c=g->communities[i], c_n;	
 	int comm_size = g->n;
 
 	/* shared */
-	std::vector<int> volumes = g->comm_volumes;	
+	std::vector<int> volumes(comm_size, 0);
+	//for (int i=0; i<g->n; i++)
+	//	volumes[g->communities[i]] += g->volumes[i];
+	
+	
 	std::vector<pair<int, float>> results(threads, std::make_pair(c, 0.0)); /* each thread will write the best result it will find*/
 
 	/* iterate once over all neighbors and compute weights from i to all communities.
 	   Update the weights for all threads */
 	for (auto neighbor_it = n_i.begin(); neighbor_it < n_i.end(); ++neighbor_it) {
 		if ((int) neighbor_it->first != i) {
+				
+				c_n = g->communities[neighbor_it->first]; 
+				volumes[c_n] = g->comm_volumes[c_n];
 				#pragma omp parallel for num_threads(threads)
-				for (j=0; j<threads; j++)
-					weights_per_thread[j][g->communities[neighbor_it->first]] += neighbor_it->second;
+				for (j=0; j<threads; j++) 
+					weights_per_thread[j][c_n] += neighbor_it->second;
 		}
         }
 
@@ -178,11 +186,11 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 	    weight weight_c = t_weights[c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
-        weight n_w = g->weight_net;
-        float n_w_float = n_w;
-		float double_sqr_n_w = 2 * n_w * n_w;
-		float i_vol_divided = i_vol / double_sqr_n_w;
-		float weight_c_divided = weight_c / n_w_float;
+            weight n_w = g->weight_net;
+            float n_w_float = n_w;
+	    float double_sqr_n_w = 2 * n_w * n_w;
+	    float i_vol_divided = i_vol / double_sqr_n_w;
+	    float weight_c_divided = weight_c / n_w_float;
 
 	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
 	
@@ -194,13 +202,13 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 	       // compute difference in modularity for this community
 	        
         	a =  (t_weights[c_number] / n_w_float) - weight_c_divided;
-    	    b = (volume_c - volumes[c_number]) * i_vol_divided;
-			dmod = a + b;
-			if (dmod > max_pair.second) {
-				max_pair.first=c_number;
-				max_pair.second=dmod;
-			}
-			c_number += threads;
+    	    	b = (volume_c - volumes[c_number]) * i_vol_divided;
+		dmod = a + b;
+		if (dmod > max_pair.second) {
+			max_pair.first=c_number;
+			max_pair.second=dmod;
+		}
+		c_number += threads;
 	    }	   
 	    results[tid] = max_pair;
 	}
@@ -242,7 +250,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	int unstable = 1;
 	int iterations=0;
 	int threads = std::min(graph->n, omp_get_max_threads());
-	cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
+	//cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
 
 
 	// when Local Move is called, each node alone is a community
@@ -254,7 +262,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	graph->comm_volumes = volumes;
 
 	while (unstable) {
-		cout << "iteration:" << iterations++ << endl;
+		//cout << "iteration:" << iterations++ << endl;
 		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
@@ -264,9 +272,9 @@ void  PLM::Local_move(GraphComm* graph) {
 			int i_comm = graph->communities[i];
 			std::pair<int, float> res = ReturnCommunity(i, graph);
 			if (res.first != i_comm) { 
-				//graph->communities[i] = res.first;
-				//#pragma omp atomic write
-				//unstable=1;
+				graph->communities[i] = res.first;
+				#pragma omp atomic write
+				unstable=1;
 				#pragma omp critical 
 				{
 					graph->communities[i] = res.first;
