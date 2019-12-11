@@ -23,19 +23,19 @@ int PLP::dominant_label(int node) {
 	//TODO: Replace the frequency array with an array of sum
 	std::unordered_map<int,int> label_weights;
 
-	std::vector<pair<node_id, weight>> neighbors = graph.net[node];
+	std::vector<pair<node_id, weight>> neighbors = graph->net[node];
 	// https://stackoverflow.com/a/17853547
 	// parallel loops should be in the canonical form
 	#pragma omp parallel for
 	for (auto neighbor_it = neighbors.begin(); neighbor_it < neighbors.end(); ++neighbor_it)
 	{
 		#pragma omp atomic update
-		label_weights[graph.communities[neighbor_it->first]]+=neighbor_it->second;
+		label_weights[graph->communities[neighbor_it->first]]+=neighbor_it->second;
 	}
 
 	// https://stackoverflow.com/a/56710797
 	// parallel for on unordered map
-	int max_val = 0, dom_label = graph.communities[node];
+	int max_val = 0, dom_label = graph->communities[node];
 	std::pair<int, int> max_pair = std::make_pair(dom_label, max_val);
 
 	#pragma omp declare reduction \
@@ -61,8 +61,8 @@ int PLP::dominant_label(int node) {
 	// std::cout << "max: " << max_pair.second << " in: " << max_pair.first << std::endl;
 	// std::unordered_map<int,int> label_freq2;
 
-	// for (auto const& neighbor: graph.adj_list[node]) {
-	// 	label_freq2[graph.communities[neighbor]]++;
+	// for (auto const& neighbor: graph->adj_list[node]) {
+	// 	label_freq2[graph->communities[neighbor]]++;
 	// }
 
 	// int max_val2 = 0, dom_label2 = -1;
@@ -80,38 +80,38 @@ int PLP::dominant_label(int node) {
 
 
 void PLP::DetectCommunities() {
-	graph.communities.reserve(graph.n);
+	graph->communities.reserve(graph->n);
 
 	// TODO see https://stackoverflow.com/questions/13224155/how-does-the-omp-ordered-clause-work
 	// play with the number of static scheduling
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
-	for (int i = 0; i < graph.n; i++) {
-		graph.communities[i] = i;
+	for (int i = 0; i < graph->n; i++) {
+		graph->communities[i] = i;
 	}
 
 	// // print to see if communities have been set in order
 	// std::cout << "myvector contains:";
-  	// std::vector<int> myvector = graph.communities;
+  	// std::vector<int> myvector = graph->communities;
 	// for (auto it = myvector.begin() ; it != myvector.end(); ++it)
     // 	std::cout << ' ' << *it;m
   	// std::cout << '\n';
 
-	int updated = graph.n;
+	int updated = graph->n;
 	while (updated > threshold) {
 		updated = 0;
 		#pragma omp parallel for
-		for (int i = 0; i < graph.n; i++) {
+		for (int i = 0; i < graph->n; i++) {
 			int new_label = dominant_label(i);
-			if (new_label != graph.communities[i]) {
-				graph.communities[i] = new_label;
+			if (new_label != graph->communities[i]) {
+				graph->communities[i] = new_label;
 				updated++;
 			}
 
 		}
 	}
 	// cout << "final communities:" << endl;
-	// for (int i = 0; i < graph.n; i++) {
-	// 	std::cout << graph.communities[i] << ' ';
+	// for (int i = 0; i < graph->n; i++) {
+	// 	std::cout << graph->communities[i] << ' ';
 	// }
 	// cout << endl;
 
@@ -145,7 +145,7 @@ void PLP::PrintCommunities(const std::string &file_name) {
 		std::exit(2);
 	}
 
-	for (int i = 0; i < graph.n; i++) {
-		ofs << graph.communities[i] << std::endl;
+	for (int i = 0; i < graph->n; i++) {
+		ofs << graph->communities[i] << std::endl;
 	}
 }

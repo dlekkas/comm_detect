@@ -28,19 +28,23 @@ int main(int argc, char* argv[]) {
 
 	/* initialize graph from file */
 	GraphComm test_g;
+	auto start = std::chrono::system_clock::now();
 	test_g.Init(file_name);
-	//test_g.PrintNetwork();
+
+	auto end = std::chrono::system_clock::now();
+	auto total_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	//cout << "Read file succesfully after " << total_time / 1000.0 << "s" << std::endl;
+	// test_g.PrintNetwork();
 
 	/* detect communities of graph */
-	PLP test_plp { test_g };
+	PLP test_plp(&test_g);
 
 	/* benchmark time of community detection */
-	auto start = std::chrono::system_clock::now();
+	start = std::chrono::system_clock::now();
 	test_plp.DetectCommunities();
-	auto end = std::chrono::system_clock::now();
+	end = std::chrono::system_clock::now();
 
-	auto total_time = std::chrono::duration_cast<
-			std::chrono::milliseconds>(end - start).count();
+	total_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "time (in sec): " << total_time / 1000.0;
 
 	/* print result to file */
@@ -49,18 +53,18 @@ int main(int argc, char* argv[]) {
 	// 	cout << test_plp.graph.communities[i] << endl;
 	// }
 
-	std::map<int, int> com_map = test_plp.Map_communities(&(test_plp.graph));
+	std::map<int, int> com_map = test_plp.Map_communities(test_plp.graph);
   	std::vector<int> cs;
-	int n = test_plp.graph.n;
+	int n = test_plp.graph->n;
 
-	for (int i = 0; i < test_plp.graph.n; i++) {
+	for (int i = 0; i < test_plp.graph->n; i++) {
 		// cout << test_plp.graph.communities[i] << "->" << com_map[test_plp.graph.communities[i]] << endl;
-		cs.push_back(com_map[test_plp.graph.communities[i]]);
+		cs.push_back(com_map[test_plp.graph->communities[i]]);
 	}
 	// for (int i = 0; i < n; i++) {
 	// 	cout << cs[i] << endl;
 	// }
-	
+
 	modularity mod;
   	mod = compute_modularity_from_node_comm(cs, n,
 											test_g.net);

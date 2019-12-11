@@ -14,10 +14,10 @@ class PLP {
 
 	public:
 		/* graph on which PLP will be applied */
-		GraphComm graph;
+		GraphComm *graph;
 
-		PLP(GraphComm &init_graph): graph(init_graph),
-				threshold(init_graph.n * EPS) {};
+		PLP(GraphComm *init_graph): graph(init_graph),
+				threshold(init_graph->n * EPS) {};
 
 		~PLP() {};
 
