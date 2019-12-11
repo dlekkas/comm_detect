@@ -27,22 +27,22 @@ class PLM {
 		int connected(int comm_1, int comm_2, std::vector<int> communities, std::vector<std::vector<int>> adj_list);
 
 		/* refresh the communities of the nodes of the input graph according to the new communities found by the coarsened step */
-		std::vector<int> prolong(GraphComm g_initial, std::vector<int> coarsened_comm);
+		std::vector<int> prolong(GraphComm *g_initial, std::vector<int> coarsened_comm);
 
 		/* turn each community of the graph taken as argument into a supernode and create a new graph */
-		GraphComm coarsen(GraphComm* g_initial);
+		GraphComm *coarsen(GraphComm* g_initial);
 
 		/* do local moves for modularity gain */
 		void Local_move(GraphComm* graph);
 
 		/* */
-		std::vector<int> Recursive_comm_detect(GraphComm g);
+		std::vector<int> Recursive_comm_detect(GraphComm *g);
 
 		/* */
 		std::pair<int,float> ReturnCommunity(int i, GraphComm* g);
 
 		/* */
-		std::map<int, int> Map_communities(GraphComm g);
+		std::map<int, int> Map_communities(GraphComm *g);
 
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
