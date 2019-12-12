@@ -90,7 +90,8 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 		new_net[i]=v;
 	}*/
 
-	int* new_net_array = (int*)calloc(n*n, sizeof(int));	
+	//int* new_net_array = (int*)calloc(n*n, sizeof(int));	
+	std::unordered_map<int,int> new_net_array[n];	 
 
 	#pragma omp parallel for num_threads(threads)
     for (int i=0; i<(*g_initial).n; i++) {
@@ -101,7 +102,8 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
 			int c_j = comm[it->first];
 			#pragma omp atomic update
-			new_net_array[pos_i + c_j] += it->second;
+			//new_net_array[pos_i + c_j] += it->second;
+			new_net_array[c_i][c_j] += it->second;
 		}
 	}
 
@@ -111,7 +113,8 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	for (int i=0; i<n; i++) {
 		std::vector<pair<node_id, weight>> v;
 		weight i_volume = 0; 
-		weight w_i_k;
+		std::unordered_map<int,int> net_i =  new_net_array[i];
+		/*weight w_i_k;
 		int pos_i = i * n;
 		for (int k=0; k<n; k++) {
 			w_i_k = new_net_array[pos_i + k];
@@ -119,8 +122,15 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 				v.push_back(make_pair(k, w_i_k));
 				i_volume += w_i_k;
 			}
+		}*/
+		for (auto it: net_i) {
+			v.push_back(make_pair(it.first, it.second));
+			i_volume += it.second;
+			if (it.first == i)
+				i_volume += it.second;
 		}
-		new_volumes[i] = i_volume + new_net_array[pos_i + i];
+
+		new_volumes[i] = i_volume;
 		new_net[i]=v;
 	}
 
@@ -293,15 +303,15 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 	Local_move(g);
 
 
-	auto start = std::chrono::system_clock::now();
+	/*auto start = std::chrono::system_clock::now();
 	GraphComm *g_new = coarsen(g);
 	auto end = std::chrono::system_clock::now();
 
 	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-	std::cout << "coarsen took time (in us) : " << total_time << std::endl;
+	std::cout << "coarsen took time (in us) : " << total_time << std::endl;*/
 
     
-	/*if (g->communities != c_singleton) {
+	if (g->communities != c_singleton) {
 		auto start = std::chrono::system_clock::now();
 		GraphComm *g_new = coarsen(g);
 		auto end = std::chrono::system_clock::now();
@@ -310,7 +320,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 		std::cout << "coarsen took time (in us) : " << total_time << std::endl;
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
-	}*/
+	}
 	return g->communities;
 
 }
