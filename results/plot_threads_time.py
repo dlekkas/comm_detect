@@ -76,8 +76,8 @@ def calculate_ci(results_dict,res_median):
     res_lolims = np.zeros(n_cycles)
     res_uplims = np.zeros(n_cycles)
     res_sort = []
-    lower_lim = 0
-    upper_lim = 3
+    lower_lim = 0 # if n > 5 comment these 2 lines
+    upper_lim = 3 # if n > 5 comment these 2 lines
     j=0
     
     for thread_no, times in results_dict.items():
@@ -168,7 +168,7 @@ def plot_speedup(results_dict, algo):
     res_median = calculate_median(results_dict)
 
     speedup_dict={}
-    f=0.01 # 
+    f=0.01 # How to calculate this?
     speedup_ideal = {}
     speedup_amd={}
     for k in list(res_median.keys()):
