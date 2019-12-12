@@ -5,6 +5,7 @@
 #include <chrono>
 
 #include <map>
+#include <unordered_set>
 
 #define NUM_SPLIT 100
 
@@ -60,7 +61,7 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 
 	#pragma omp parallel for num_threads(threads)
 	for (int i=0; i<(*g_initial).n; i++) {
-		int tid = omp_get_thread_num();
+		// int tid = omp_get_thread_num();
 		int c_i = comm[i];
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
@@ -190,21 +191,24 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 }
 
 
-std::map<int, int> PLM::Map_communities(GraphComm *g) {
+std::unordered_map<int, int> PLM::Map_communities(GraphComm *g) {
 
-	std::vector<int> comms;
-	std::map<int,int> com_map;
+	std::unordered_set<int> comms;
+	std::unordered_map<int,int> com_map;
 	for (int i=0; i<g->n; i++) {
 		int c = g->communities[i];
 
 		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
-			comms.push_back(c);
+			comms.insert(c);
 		}
 	}
-	sort(comms.begin(), comms.end());
+	// cout << "comms.size(): " << comms.size() << endl;
 
-	for (int i=0; i < (int) comms.size(); i++)
-		com_map.insert(std::pair<int,int>(comms[i], i));
+	int i = 0;
+	for (auto it:comms) {
+		com_map.insert(std::pair<int,int>(it, i));
+		i++;
+	}
 
 	return com_map;
 
@@ -256,21 +260,20 @@ void  PLM::Local_move(GraphComm* graph) {
 
 	}
 	auto end = std::chrono::system_clock::now();
-	auto total_time = std::chrono::duration_cast<
-			std::chrono::microseconds>(end - start).count();
+	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 	std::cout << "comm detection took time (in us) : " << total_time << std::endl;
 
-
-	start = std::chrono::system_clock::now();
-    std::map<int, int> com_map = Map_communities(graph);
-	#pragma omp parallel for
-	for (int i=0; i<(*graph).n; i++)
-                (*graph).communities[i] = com_map[(*graph).communities[i]];
-	end = std::chrono::system_clock::now();
-	total_time = std::chrono::duration_cast<
-			std::chrono::microseconds>(end - start).count();
-	std::cout << "map comm took time (in us) : " << total_time << std::endl;
-
+    if (iterations > 1) {
+		start = std::chrono::system_clock::now();
+		std::unordered_map<int, int> com_map = Map_communities(graph);
+		#pragma omp parallel for
+		for (int i=0; i<(*graph).n; i++)
+			(*graph).communities[i] = com_map[(*graph).communities[i]];
+		end = std::chrono::system_clock::now();
+		total_time = std::chrono::duration_cast<
+				std::chrono::microseconds>(end - start).count();
+		std::cout << "map comm took time (in us) : " << total_time << std::endl;
+	}
 }
 
 

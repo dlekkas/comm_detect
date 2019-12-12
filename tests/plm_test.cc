@@ -45,10 +45,10 @@ int main(int argc, char* argv[]) {
 			std::chrono::milliseconds>(end - start).count();
 	std::cout << "time (in sec): " << total_time / 1000.0;
 
-	modularity mod;
-	mod = compute_modularity_from_node_comm(test_plm.graph.communities, test_plm.graph.n,
-											test_g.net);
-    cout << ", modularity: " << mod << endl;
+	// modularity mod;
+	// mod = compute_modularity_from_node_comm(test_plm.graph.communities, test_plm.graph.n,
+	// 										test_g.net);
+    // cout << ", modularity: " << mod << endl;
 
 	return 0;
 }

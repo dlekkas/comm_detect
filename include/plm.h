@@ -42,7 +42,7 @@ class PLM {
 		std::pair<int,float> ReturnCommunity(int i, GraphComm* g);
 
 		/* */
-		std::map<int, int> Map_communities(GraphComm *g);
+		std::unordered_map<int, int> Map_communities(GraphComm *g);
 
 		/* Resulting communities are printed in the format specified by the
 		 * DIMACS 10th challenge (i.e each line has the community number that
