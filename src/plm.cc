@@ -92,6 +92,7 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 
 	int* new_net_array = (int*)calloc(n*n, sizeof(int));	
 
+	#pragma omp parallel for num_threads(threads)
     for (int i=0; i<(*g_initial).n; i++) {
 		// int tid = omp_get_thread_num();
 		int c_i = comm[i];
