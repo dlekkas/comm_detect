@@ -269,7 +269,12 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 
     
 	if (g->communities != c_singleton) {
+		auto start = std::chrono::system_clock::now();
 		GraphComm *g_new = coarsen(g);
+		auto end = std::chrono::system_clock::now();
+
+		auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+		std::cout << "coarsen took time (in us) : " << total_time << std::endl;
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
 	}
