@@ -120,10 +120,9 @@ std::pair <int, float> max_pair_arg (std::pair <int, float> r, std::pair <int, f
 
 std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 
-
-    	int threads = std::min(g->n, omp_get_max_threads());
+    int threads = std::min(g->n, omp_get_max_threads());
 	std::vector<pair<node_id, weight>> n_i = g->net[i];
-	std::vector<std::vector<int>> weights_per_thread(threads, std::vector<int>(g->n, 0));
+	std::vector<std::unordered_map<int,int>> weights_per_thread(threads, unordered_map<int, int>());
 	int j, c=g->communities[i], c_n;	
 	int comm_size = g->n;
 
@@ -141,7 +140,8 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 				for (j=0; j<threads; j++) 
 					weights_per_thread[j][c_n] += neighbor_it->second;
 		}
-    	}
+    }
+
 
 	
 	#pragma omp parallel num_threads(threads)
@@ -149,41 +149,40 @@ std::pair<int, float> PLM::ReturnCommunity(int i, GraphComm *g) {
 	    int tid = omp_get_thread_num();
 
 	    //int tid=0;
-	    //std::vector<int> t_weights = weights_per_thread[tid];
+	    std::unordered_map<int,int> t_weights = weights_per_thread[tid];
 	    //std::vector<float> t_mod(comm_size, 0.0);
 	    weight weight_c = weights_per_thread[tid][c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
-            weight n_w = g->weight_net;
-            float n_w_float = n_w;
+        weight n_w = g->weight_net;
+        float n_w_float = n_w;
 	    float double_sqr_n_w = 2 * n_w * n_w;
 	    float i_vol_divided = i_vol / double_sqr_n_w;
 	    float weight_c_divided = weight_c / n_w_float;
 
 	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
-	    
-            /* find the id of communities that this thread will check */
-	    
-	    int c_number = tid;
+		std::pair<int, float> pair;	
 	    float a, b, dmod;
-	    while (c_number < comm_size) {
-	       // compute difference in modularity for this community
-	        if (weights_per_thread[tid][c_number] > 0) {
-		    	a =  (weights_per_thread[tid][c_number] / n_w_float) - weight_c_divided;
-			b = (volume_c - volumes[c_number]) * i_vol_divided;
-			dmod = a + b;
-			if (dmod > max_pair.second) {
-				max_pair.first=c_number;
-				max_pair.second=dmod;
+	
+		for (size_t c = 0; c < t_weights.bucket_count(); c++) {
+			for (auto bi = t_weights.begin(c); bi != t_weights.end(c); bi++) {
+				pair = *bi;
+				a =  (pair.second / n_w_float) - weight_c_divided;
+			    b = (volume_c - volumes[pair.first]) * i_vol_divided;
+				dmod = a + b;
+				if (dmod > max_pair.second) {
+					max_pair.first=pair.first;
+					max_pair.second=dmod;
+				}
+		
 			}
 		}
-		c_number += threads;
-	    }	   
-	    results[tid] = max_pair;
+		results[tid] = max_pair;
 	}
 	
 	std::pair<int, float> max_p = std::make_pair(c, 0.0);
-    	for (j=0; j<threads; j++) {
+
+    for (j=0; j<threads; j++) {
 		if (results[j].second > max_p.second) 
 			max_p = results[j];
 	}
@@ -229,12 +228,13 @@ void  PLM::Local_move(GraphComm* graph) {
 
 	graph->comm_volumes = volumes;
 
+
+	auto start = std::chrono::system_clock::now();	
 	while (unstable) {
 		cout << "iteration:" << iterations++ << endl;
 		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		float dmod=0.0;
 		#pragma omp parallel for
 		for (int i=0; i<graph->n; i++) {
 			int i_comm = graph->communities[i];
@@ -245,8 +245,6 @@ void  PLM::Local_move(GraphComm* graph) {
 				unstable=1;
 				#pragma omp critical 
 				{
-					graph->communities[i] = res.first;
-					dmod+=res.second;
 					graph->comm_volumes[res.first] += graph->volumes[i];
 					graph->comm_volumes[i_comm] -= graph->volumes[i]; 
 				
@@ -254,17 +252,24 @@ void  PLM::Local_move(GraphComm* graph) {
 			}
 
 		}
-		if (dmod<0.000001)
-			break;
-	
+
 
 	}
+	auto end = std::chrono::system_clock::now();
+	auto total_time = std::chrono::duration_cast<
+			std::chrono::microseconds>(end - start).count();
+	std::cout << "comm detection took time (in us) : " << total_time << std::endl;
 
-    //FIXME: this consumes much time	
+
+	start = std::chrono::system_clock::now();
     std::map<int, int> com_map = Map_communities(graph);
 	#pragma omp parallel for
 	for (int i=0; i<(*graph).n; i++)
                 (*graph).communities[i] = com_map[(*graph).communities[i]];
+	end = std::chrono::system_clock::now();
+	total_time = std::chrono::duration_cast<
+			std::chrono::microseconds>(end - start).count();
+	std::cout << "map comm took time (in us) : " << total_time << std::endl;
 
 }
 
