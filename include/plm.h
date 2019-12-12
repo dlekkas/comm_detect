@@ -39,7 +39,7 @@ class PLM {
 		std::vector<int> Recursive_comm_detect(GraphComm *g);
 
 		/* */
-		std::pair<int,float> ReturnCommunity(int i, GraphComm* g);
+		int ReturnCommunity(int i, GraphComm* g);
 
 		/* */
 		std::unordered_map<int, int> Map_communities(GraphComm *g);
