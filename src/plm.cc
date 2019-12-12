@@ -196,11 +196,7 @@ std::unordered_map<int, int> PLM::Map_communities(GraphComm *g) {
 	std::unordered_set<int> comms;
 	std::unordered_map<int,int> com_map;
 	for (int i=0; i<g->n; i++) {
-		int c = g->communities[i];
-
-		if (std::find(comms.begin(), comms.end(), c) == comms.end()) {
-			comms.insert(c);
-		}
+		comms.insert(g->communities[i]);
 	}
 	// cout << "comms.size(): " << comms.size() << endl;
 
