@@ -31,6 +31,7 @@
 }
 
 
+
 void print_map(std::map<int,std::vector<int>> myMap) {
 for(map<int, std::vector<int>>::const_iterator it = myMap.begin(); it != myMap.end(); ++it)
 {
@@ -40,10 +41,14 @@ for(map<int, std::vector<int>>::const_iterator it = myMap.begin(); it != myMap.e
 }
 
 
-GraphComm *PLM::coarsen(GraphComm* g_initial) {
+void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unordered_map<int,int>>>* array_thread, std::vector<std::unordered_map<int,int>>* new_net_array) {
 
 
-	GraphComm *g = new GraphComm;
+	auto start_total = std::chrono::system_clock::now();
+
+	auto start = std::chrono::system_clock::now();
+
+	//GraphComm *g = new GraphComm;
 	std::vector<int> comm = (*g_initial).communities;
 	int n = *max_element(std::begin(comm), std::end(comm)) + 1;
 	g->n = n;
@@ -57,15 +62,23 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 
 	network new_net(n, std::vector<pair<node_id, weight>>());	
 	// std::unordered_map<int,int> new_net_array[n];	 
-	std::vector<std::unordered_map<int,int>> new_net_array(n);	 
+	// std::vector<std::unordered_map<int,int>> new_net_array(n);	 
 	// std::unordered_map<int,int> array_thread[threads][n];	 
 
-	vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
+	//vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
 
-	auto start = std::chrono::system_clock::now();
+	//std::unordered_map<int,int> array_thread[threads][n];
+
+        auto end = std::chrono::system_clock::now();
+
+        auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "-------------init  took time (in us) : " << total_time << std::endl;
+
+
+	start = std::chrono::system_clock::now();
 	
 	#pragma omp parallel for num_threads(threads)
-    for (int i=0; i<(*g_initial).n; i++) {
+    	for (int i=0; i<(*g_initial).n; i++) {
 		int tid = omp_get_thread_num();
 		int c_i = comm[i];
 		//std::unordered_map<int,int> *n_i = &(new_net_array[c_i]);
@@ -78,13 +91,13 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 			//	new_net_array[c_i][c_j] += it->second;
 			// }
 			
-			array_thread[tid][c_i][c_j] += it->second;
+			(*array_thread)[tid][c_i][c_j] += it->second;
 		}
 	}
 
-	auto end = std::chrono::system_clock::now();
+	end = std::chrono::system_clock::now();
 
-	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 	std::cout << "-------------per thread took time (in us) : " << total_time << std::endl;
 
 	
@@ -92,8 +105,8 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	#pragma omp parallel for num_threads(threads)
 	for (int j=0; j<n; j++) {
 		for (int i=0; i < threads; i++) {
-    		for (auto r : array_thread[i][j]) {
-					new_net_array[j][r.first] += r.second;
+    			for (auto r : (*array_thread)[i][j]) {
+					(*new_net_array)[j][r.first] += r.second;
 			}
     	}
 	}
@@ -103,14 +116,12 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 	std::cout << "-------------reduce took time (in us) : " << total_time << std::endl;
 
-
-	int threads_c = std::min(n, omp_get_max_threads());
-
-	#pragma omp parallel for num_threads(threads_c)
+	#pragma omp parallel for
+	//int threads_c = std::min(n, omp_get_max_threads());
 	for (int i=0; i<n; i++) {
 		std::vector<pair<node_id, weight>> v;
 		weight i_volume = 0; 
-		std::unordered_map<int,int> net_i =  new_net_array[i];
+		std::unordered_map<int,int> net_i =  (*new_net_array)[i];
 		for (auto it: net_i) {
 			v.push_back(make_pair(it.first, it.second));
 			i_volume += it.second;
@@ -121,13 +132,36 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 		new_volumes[i] = i_volume;
 		new_net[i]=v;
 	}
+	
+
+	end = std::chrono::system_clock::now();
+
+        total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "-------------network creation took time (in us) : " << total_time << std::endl;
+
+	
+	start = std::chrono::system_clock::now();
 
 	g->volumes = new_volumes;
 	g->net = new_net;
 	g->weight_net = (*g_initial).weight_net; //the sum of all edges remains the same
 
+
+	end = std::chrono::system_clock::now();
+
+        total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "-------------finalize took time (in us) : " << total_time << std::endl;
+
 	//cout << "exit coarsen" << endl;
-	return g;
+	//start = std::chrono::system_clock::now();
+	//cout << std::chrono::duration_cast<std::chrono::microseconds>(start).count() << endl;
+
+	auto end_total = std::chrono::system_clock::now();
+
+        total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
+        std::cout << "-------------total coarsen took time (in us) : " << total_time << std::endl;
+	
+	//return g;
 
 }
 
@@ -173,8 +207,8 @@ int PLM::ReturnCommunity(int i, GraphComm *g) {
 	    weight weight_c = weights[c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
-        weight n_w = g->weight_net;
-        float n_w_float = n_w;
+            weight n_w = g->weight_net;
+            float n_w_float = n_w;
 	    float double_sqr_n_w = 2 * n_w * n_w;
 	    float i_vol_divided = i_vol / double_sqr_n_w;
 	    float weight_c_divided = weight_c / n_w_float;
@@ -242,7 +276,7 @@ void  PLM::Local_move(GraphComm* graph) {
 		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		#pragma omp parallel for
+		#pragma omp parallel for num_threads(threads)
 		for (int i=0; i<graph->n; i++) {
 			int i_comm = graph->communities[i];
 			int new_comm = ReturnCommunity(i, graph);
@@ -266,7 +300,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 	std::cout << "comm detection took time (in us) : " << total_time << std::endl;
 
-    if (iterations > 1) {
+    	if (iterations > 1) {
 		start = std::chrono::system_clock::now();
 		std::unordered_map<int, int> com_map = Map_communities(graph);
 		#pragma omp parallel for
@@ -301,11 +335,30 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
     
 	if (g->communities != c_singleton) {
 		auto start = std::chrono::system_clock::now();
-		GraphComm *g_new = coarsen(g);
+		GraphComm *g_new = new GraphComm;
+		int n = *max_element(std::begin(g->communities), std::end(g->communities)) + 1;
+		int threads=omp_get_max_threads();
+		
+		vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
+		std::vector<std::unordered_map<int,int>> new_net_array(n);	 
+
+		coarsen(g, g_new, &array_thread, &new_net_array);
 		auto end = std::chrono::system_clock::now();
 
-		auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
+                auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+                std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
+
+		#pragma omp parallel for
+		for (int j=0; j<n; j++) {
+			for (int i=0; i < threads; i++)  
+                		array_thread[i][j].clear();
+		}
+
+		
+		#pragma omp parallel for
+		for (int i=0; i<n; i++)
+			new_net_array[i].clear();
+		
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
 	}
