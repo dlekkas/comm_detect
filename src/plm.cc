@@ -56,29 +56,53 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << n << " nodes " << endl;
 
 	network new_net(n, std::vector<pair<node_id, weight>>());	
-	std::unordered_map<int,int> new_net_array[n];	 
+	std::unordered_map<int,int> new_net_array[n];	
 
+	vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
+
+	auto start = std::chrono::system_clock::now();
+	
 	#pragma omp parallel for num_threads(threads)
     for (int i=0; i<(*g_initial).n; i++) {
 		int tid = omp_get_thread_num();
 		int c_i = comm[i];
+		//std::unordered_map<int,int> *n_i = &(new_net_array[c_i]);
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
 			int c_j = comm[it->first];
-			#pragma omp critical 
-			{
-				new_net_array[c_i][c_j] += it->second;
-			}
+
+			//#pragma omp critical 
+			//{
+				//(*n_i)[c_j] += it->second;
+			//	new_net_array[c_i][c_j] += it->second;
+			//}
+			array_thread[tid][c_i][c_j] += it->second;
 		}
 	}
+
+	auto end = std::chrono::system_clock::now();
+
+	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	std::cout << "-------------per thread took time (in us) : " << total_time << std::endl;
+
 	
+	start = std::chrono::system_clock::now();
+
 	// Reduce
-	/*for (int i=0; i < threads; i++) {
-		for (int j=0; j<n; j++) {
-    		for (auto r : array_thread[i][j]) 
-        		new_net_array[j][r.first] += r.second;
+	#pragma omp parallel for num_threads(threads)
+	for (int j=0; j<n; j++) {
+		for (int i=0; i < threads; i++) {
+    		for (auto r : array_thread[i][j]) {
+					new_net_array[j][r.first] += r.second;
+			}
     	}
-	}*/
+	}
+
+	end = std::chrono::system_clock::now();
+
+	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	std::cout << "-------------reduce took time (in us) : " << total_time << std::endl;
+
 
 	int threads_c = std::min(n, omp_get_max_threads());
 
@@ -281,7 +305,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 		auto end = std::chrono::system_clock::now();
 
 		auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		std::cout << "coarsen took time (in us) : " << total_time << std::endl;
+		std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
 	}
