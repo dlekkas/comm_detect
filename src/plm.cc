@@ -56,7 +56,9 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << n << " nodes " << endl;
 
 	network new_net(n, std::vector<pair<node_id, weight>>());	
-	std::unordered_map<int,int> new_net_array[n];	
+	// std::unordered_map<int,int> new_net_array[n];	 
+	std::vector<std::unordered_map<int,int>> new_net_array(n);	 
+	// std::unordered_map<int,int> array_thread[threads][n];	 
 
 	vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
 
@@ -70,12 +72,12 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
 			int c_j = comm[it->first];
-
 			//#pragma omp critical 
 			//{
 				//(*n_i)[c_j] += it->second;
 			//	new_net_array[c_i][c_j] += it->second;
-			//}
+			// }
+			
 			array_thread[tid][c_i][c_j] += it->second;
 		}
 	}
@@ -87,8 +89,6 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 
 	
 	start = std::chrono::system_clock::now();
-
-	// Reduce
 	#pragma omp parallel for num_threads(threads)
 	for (int j=0; j<n; j++) {
 		for (int i=0; i < threads; i++) {
