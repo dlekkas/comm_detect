@@ -53,59 +53,32 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 	int threads=omp_get_max_threads();
     std::vector<int> new_volumes(n, 0);
 
-	//cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << g.n << " nodes " << endl;
+	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << n << " nodes " << endl;
 
-	network new_net(n, std::vector<pair<node_id, weight>>());
-
-	/*std::vector<std::vector<int>> new_net_array(std::vector<std::vector<int>>(n, std::vector<int>(n, 0))); 
-
-
-	#pragma omp parallel for num_threads(threads)
-	for (int i=0; i<(*g_initial).n; i++) {
-		// int tid = omp_get_thread_num();
-		int c_i = comm[i];
-		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
-		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
-			int c_j = comm[it->first];
-			#pragma omp atomic update
-			new_net_array[c_i][c_j] += it->second;
-		}
-	}
-
-	int threads_c = std::min(n, omp_get_max_threads());
-
-	#pragma omp parallel for num_threads(threads_c)
-	for (int i=0; i<n; i++) {
-		std::vector<pair<node_id, weight>> v;
-		weight i_volume = 0; 
-		weight w_i_k;
-		for (int k=0; k<n; k++) {
-			w_i_k = new_net_array[i][k];
-			if (w_i_k > 0) {
-				v.push_back(make_pair(k, w_i_k));
-				i_volume += w_i_k;
-			}
-		}
-		new_volumes[i] = i_volume + new_net_array[i][i];
-		new_net[i]=v;
-	}*/
-
-	//int* new_net_array = (int*)calloc(n*n, sizeof(int));	
+	network new_net(n, std::vector<pair<node_id, weight>>());	
 	std::unordered_map<int,int> new_net_array[n];	 
 
 	#pragma omp parallel for num_threads(threads)
     for (int i=0; i<(*g_initial).n; i++) {
-		// int tid = omp_get_thread_num();
+		int tid = omp_get_thread_num();
 		int c_i = comm[i];
-		int pos_i = c_i*n;
 		vector<pair<node_id, weight>> neighbors = g_initial->net[i];
 		for (auto it=neighbors.begin(); it<neighbors.end(); ++it) {
 			int c_j = comm[it->first];
-			#pragma omp atomic update
-			//new_net_array[pos_i + c_j] += it->second;
-			new_net_array[c_i][c_j] += it->second;
+			#pragma omp critical 
+			{
+				new_net_array[c_i][c_j] += it->second;
+			}
 		}
 	}
+	
+	// Reduce
+	/*for (int i=0; i < threads; i++) {
+		for (int j=0; j<n; j++) {
+    		for (auto r : array_thread[i][j]) 
+        		new_net_array[j][r.first] += r.second;
+    	}
+	}*/
 
 	int threads_c = std::min(n, omp_get_max_threads());
 
@@ -114,15 +87,6 @@ GraphComm *PLM::coarsen(GraphComm* g_initial) {
 		std::vector<pair<node_id, weight>> v;
 		weight i_volume = 0; 
 		std::unordered_map<int,int> net_i =  new_net_array[i];
-		/*weight w_i_k;
-		int pos_i = i * n;
-		for (int k=0; k<n; k++) {
-			w_i_k = new_net_array[pos_i + k];
-			if (w_i_k > 0) {
-				v.push_back(make_pair(k, w_i_k));
-				i_volume += w_i_k;
-			}
-		}*/
 		for (auto it: net_i) {
 			v.push_back(make_pair(it.first, it.second));
 			i_volume += it.second;
@@ -354,7 +318,7 @@ void PLM::DetectCommunities() {
 	get_weight_and_volumes(&graph);
 	//cout << "weight: " << graph.weight_net << endl;
 	graph.communities = Recursive_comm_detect(&graph);
-	cout << "final communities: ";
+	//cout << "final communities: ";
 	//print(graph.communities);
 	int found_comm = *std::max_element(std::begin(graph.communities), std::end(graph.communities)) + 1;
 	cout << "found " << found_comm << " communities" << endl;
