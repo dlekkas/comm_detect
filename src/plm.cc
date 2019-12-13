@@ -348,6 +348,8 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
                 auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
                 std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
 
+		start = std::chrono::system_clock::now();
+	
 		#pragma omp parallel for
 		for (int j=0; j<n; j++) {
 			for (int i=0; i < threads; i++)  
@@ -356,8 +358,15 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 
 		
 		#pragma omp parallel for
-		for (int i=0; i<n; i++)
+		for (int i=0; i<n; i++) {
 			new_net_array[i].clear();
+		}
+
+		end = std::chrono::system_clock::now();
+
+        total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "-------------cleaning took time (in us) : " << total_time << std::endl;
+
 		
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
