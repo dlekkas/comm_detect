@@ -13,6 +13,8 @@
 // 1) experiment with number of threads for local move at 2 levels + search for nested parallelism
 // 2) check modularity
 // 3) speed up modularity computations
+std::vector<std::unordered_map<int,int>> new_net_array;	 
+vector<vector<std::unordered_map<int,int>>> array_thread; 
 
  void print(std::vector<int> const &input)
 {
@@ -200,15 +202,15 @@ int PLM::ReturnCommunity(int i, GraphComm *g) {
 				volumes[c_n] = g->comm_volumes[c_n];
 				weights[c_n] += neighbor_it->second;
 		}
-    }
+    	}
 
 
 
 	    weight weight_c = weights[c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
-            weight n_w = g->weight_net;
-            float n_w_float = n_w;
+        weight n_w = g->weight_net;
+        float n_w_float = n_w;
 	    float double_sqr_n_w = 2 * n_w * n_w;
 	    float i_vol_divided = i_vol / double_sqr_n_w;
 	    float weight_c_divided = weight_c / n_w_float;
@@ -339,14 +341,19 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 		int n = *max_element(std::begin(g->communities), std::end(g->communities)) + 1;
 		int threads=omp_get_max_threads();
 		
-		vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
-		std::vector<std::unordered_map<int,int>> new_net_array(n);	 
+		//vector<vector<std::unordered_map<int,int>>> array_thread(threads, vector<std::unordered_map<int,int>>(n)); 
+		array_thread.resize(threads);
+		for( auto &it : array_thread )
+    		{	
+        		it.resize(n);
+    		}
+		new_net_array.resize(n);	 
 
 		coarsen(g, g_new, &array_thread, &new_net_array);
 		auto end = std::chrono::system_clock::now();
 
-                auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-                std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
+        	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        	std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
 
 		start = std::chrono::system_clock::now();
 	
@@ -356,17 +363,28 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
                 		array_thread[i][j].clear();
 		}
 
+		#pragma omp parallel for
+                for (int j=0; j<threads; j++) {
+                 	array_thread[j].clear();
+                }
+
+
+		array_thread.clear();
 		
 		#pragma omp parallel for
 		for (int i=0; i<n; i++) {
 			new_net_array[i].clear();
 		}
+		new_net_array.clear();
+		//new_net_array.resize(0);
+		//new_net_array.shrink_to_fit();
+		//vector<std::unordered_map<int,int>>().swap(new_net_array);
+
 
 		end = std::chrono::system_clock::now();
 
         total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         std::cout << "-------------cleaning took time (in us) : " << total_time << std::endl;
-
 		
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
