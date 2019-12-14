@@ -6,6 +6,7 @@
 
 #include <map>
 #include <unordered_set>
+#include <math.h>
 
 #define NUM_SPLIT 100
 
@@ -173,7 +174,7 @@ std::vector<int> PLM::prolong(GraphComm *g_initial, std::vector<int> coarsened_c
 	std::vector<int> init_comm = g_initial->communities;
 	std::vector<int> new_comm(g_initial->n, 0);
 
-	#pragma omp parallel for schedule(static, NUM_SPLIT)
+	#pragma omp parallel for
 	for (int i=0; i<g_initial->n; i++) {
 		int i_comm = init_comm[i];
 		new_comm[i] = coarsened_comm[i_comm];
@@ -202,32 +203,31 @@ int PLM::ReturnCommunity(int i, GraphComm *g) {
 				volumes[c_n] = g->comm_volumes[c_n];
 				weights[c_n] += neighbor_it->second;
 		}
-    	}
+	}
 
 
-
+	    volumes[c] = g->comm_volumes[c];
 	    weight weight_c = weights[c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
         weight n_w = g->weight_net;
         float n_w_float = n_w;
-	    float double_sqr_n_w = 2 * n_w * n_w;
-	    float i_vol_divided = i_vol / double_sqr_n_w;
+	    long long double_sqr_n_w = g->weight_sq;
+		float i_vol_divided = (float) i_vol / double_sqr_n_w;
 	    float weight_c_divided = weight_c / n_w_float;
 
 	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
 	    float a, b, dmod;
 	
-
 		for (auto c: weights) {
-				a =  (c.second / n_w_float) - weight_c_divided;
-			    b = (volume_c - volumes[c.first]) * i_vol_divided;
-				dmod = a + b;
-				if (dmod > max_pair.second) {
-					max_pair.first=c.first;
-					max_pair.second=dmod;
-				}
-		
+			a =  (c.second / n_w_float) - weight_c_divided;
+			b = (volume_c - volumes[c.first]) * i_vol_divided;
+			dmod = a + b;
+			if (dmod > max_pair.second) {
+				max_pair.first=c.first;
+				max_pair.second=dmod;
+			}
+
 		}
 
 	return max_pair.first;
@@ -267,7 +267,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	std::vector<int> volumes(graph->n, 0);	
 	#pragma omp parallel for
 	for (int j=0; j<graph->n; j++) 
-              volumes[j] = graph->volumes[j];
+		volumes[j] = graph->volumes[j];
 
 	graph->comm_volumes = volumes;
 
@@ -302,7 +302,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 	std::cout << "comm detection took time (in us) : " << total_time << std::endl;
 
-    	if (iterations > 1) {
+	if (iterations > 1) {
 		start = std::chrono::system_clock::now();
 		std::unordered_map<int, int> com_map = Map_communities(graph);
 		#pragma omp parallel for
@@ -421,6 +421,7 @@ void PLM::DetectCommunities() {
 
 	get_weight_and_volumes(&graph);
 	//cout << "weight: " << graph.weight_net << endl;
+	graph.weight_sq = 2 * pow(graph.weight_net, 2); 
 	graph.communities = Recursive_comm_detect(&graph);
 	//cout << "final communities: ";
 	//print(graph.communities);

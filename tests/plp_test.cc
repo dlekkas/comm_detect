@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <unordered_set>
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -53,14 +54,17 @@ int main(int argc, char* argv[]) {
 	// 	cout << test_plp.graph.communities[i] << endl;
 	// }
 
+	cout << endl << "map communities . . ." <<  endl;
+
 	// std::map<int, int> com_map = test_plp.Map_communities(test_plp.graph);
-  	// std::vector<int> cs;
+  	// std::unordered_set<int> cs;
 	// int n = test_plp.graph->n;
 
 	// for (int i = 0; i < test_plp.graph->n; i++) {
 	// 	// cout << test_plp.graph.communities[i] << "->" << com_map[test_plp.graph.communities[i]] << endl;
-	// 	cs.push_back(com_map[test_plp.graph->communities[i]]);
+	// 	cs.insert(com_map[test_plp.graph->communities[i]]);
 	// }
+	// cout << "set size: " << cs.size() << endl;
 	// for (int i = 0; i < n; i++) {
 	// 	cout << cs[i] << endl;
 	// }

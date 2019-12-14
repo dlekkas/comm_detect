@@ -70,6 +70,9 @@ class GraphComm {
 		/* compute the total weight of the network only once + save it */
 		weight weight_net;
 
+		/* 2 * weight_net * weight_net */
+		long long weight_sq;
+
 		network net;
 
 

@@ -70,6 +70,7 @@ int PLP::dominant_label(int node) {
 
 
 void PLP::DetectCommunities() {
+	graph->weight_sq = 0;
 	graph->communities.reserve(graph->n);
 
 	// TODO see https://stackoverflow.com/questions/13224155/how-does-the-omp-ordered-clause-work
