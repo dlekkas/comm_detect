@@ -87,7 +87,10 @@ void PLP::DetectCommunities() {
   	// std::cout << '\n';
 
 	int updated = graph->n;
-	while (updated > threshold) {
+	int updated_previous = 0;
+	// while (updated > threshold && updated != updated_previous) {
+	while ((updated > threshold) && (abs(updated_previous - updated) > threshold)) {
+		updated_previous = updated;
 		updated = 0;
 		#pragma omp parallel for
 		for (int i = 0; i < graph->n; i++) {
@@ -98,6 +101,8 @@ void PLP::DetectCommunities() {
 			}
 
 		}
+		cout << "updated_previous: " << updated_previous << endl;
+		cout << "updated: " << updated << endl;
 	}
 	// cout << "final communities:" << endl;
 	// for (int i = 0; i < graph->n; i++) {
