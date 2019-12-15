@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
 	
 
 	/* detect communities of graph */
-	PLM test_plm { test_g };
+	PLM test_plm {&test_g };
 
         /* benchmark time of community detection */
 	auto start = std::chrono::system_clock::now();
@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 
 	auto total_time = std::chrono::duration_cast<
 			std::chrono::milliseconds>(end - start).count();
-	std::cout << "time (in sec): " << total_time / 1000.0;
+	std::cout << "time (in sec): " << total_time / 1000.0 << endl;
 
 	// modularity mod;
 	// mod = compute_modularity_from_node_comm(test_plm.graph.communities, test_plm.graph.n,

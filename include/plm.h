@@ -14,9 +14,9 @@ class PLM {
 
 	public:
 		/* graph on which PLM will be applied */
-		GraphComm graph;
+		GraphComm *graph;
 
-		PLM(GraphComm &init_graph): graph(init_graph) {};
+		PLM(GraphComm *init_graph): graph(init_graph) {};
 
 		~PLM() {};
 

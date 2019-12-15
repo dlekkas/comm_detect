@@ -9,6 +9,7 @@
 #include <math.h>
 
 #define NUM_SPLIT 100
+#define EPS 0.00001
 
 //TODO: 
 // 1) experiment with number of threads for local move at 2 levels + search for nested parallelism
@@ -61,7 +62,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	int threads=omp_get_max_threads();
     std::vector<int> new_volumes(n, 0);
 
-	cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << n << " nodes " << endl;
+	//cout << "Inside Coarsen with " << threads << " threads, create a new graph with " << n << " nodes " << endl;
 
 	network new_net(n, std::vector<pair<node_id, weight>>());	
 	// std::unordered_map<int,int> new_net_array[n];	 
@@ -75,7 +76,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
         auto end = std::chrono::system_clock::now();
 
         auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "-------------init  took time (in us) : " << total_time << std::endl;
+        //std::cout << "-------------init  took time (in us) : " << total_time << std::endl;
 
 
 	start = std::chrono::system_clock::now();
@@ -101,7 +102,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	end = std::chrono::system_clock::now();
 
 	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-	std::cout << "-------------per thread took time (in us) : " << total_time << std::endl;
+	//std::cout << "-------------per thread took time (in us) : " << total_time << std::endl;
 
 	
 	start = std::chrono::system_clock::now();
@@ -117,7 +118,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	end = std::chrono::system_clock::now();
 
 	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-	std::cout << "-------------reduce took time (in us) : " << total_time << std::endl;
+	//std::cout << "-------------reduce took time (in us) : " << total_time << std::endl;
 
 	#pragma omp parallel for
 	//int threads_c = std::min(n, omp_get_max_threads());
@@ -140,7 +141,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	end = std::chrono::system_clock::now();
 
         total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "-------------network creation took time (in us) : " << total_time << std::endl;
+        //std::cout << "-------------network creation took time (in us) : " << total_time << std::endl;
 
 	
 	start = std::chrono::system_clock::now();
@@ -153,7 +154,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	end = std::chrono::system_clock::now();
 
         total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "-------------finalize took time (in us) : " << total_time << std::endl;
+        //std::cout << "-------------finalize took time (in us) : " << total_time << std::endl;
 
 	//cout << "exit coarsen" << endl;
 	//start = std::chrono::system_clock::now();
@@ -162,7 +163,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	auto end_total = std::chrono::system_clock::now();
 
         total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
-        std::cout << "-------------total coarsen took time (in us) : " << total_time << std::endl;
+        //std::cout << "-------------total coarsen took time (in us) : " << total_time << std::endl;
 	
 	//return g;
 
@@ -259,9 +260,13 @@ void  PLM::Local_move(GraphComm* graph) {
 
 	int unstable = 1;
 	int iterations=0;
+	int updated = graph->n;
 	int threads = std::min(graph->n, omp_get_max_threads());
-	cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
+	//cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
 
+	/* */
+	int threshold = graph->n * EPS;
+	//cout << "threshold: " << threshold << endl;
 
 	// when Local Move is called, each node alone is a community
 	std::vector<int> volumes(graph->n, 0);	
@@ -273,11 +278,13 @@ void  PLM::Local_move(GraphComm* graph) {
 
 
 	auto start = std::chrono::system_clock::now();	
-	while (unstable) {
-		cout << "iteration:" << iterations++ << endl;
+	while (unstable && updated>threshold) {
+		iterations++;
+		//cout << "iteration:" << endl;
 		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
+		updated=0;
 		#pragma omp parallel for num_threads(threads)
 		for (int i=0; i<graph->n; i++) {
 			int i_comm = graph->communities[i];
@@ -286,6 +293,8 @@ void  PLM::Local_move(GraphComm* graph) {
 				graph->communities[i] = new_comm;
 				#pragma omp atomic write
 				unstable=1;
+				#pragma omp atomic update
+				updated++;
 				#pragma omp critical 
 				{
 					graph->comm_volumes[new_comm] += graph->volumes[i];
@@ -295,12 +304,13 @@ void  PLM::Local_move(GraphComm* graph) {
 			}
 
 		}
+		//cout << "updated: " << updated << endl;
 
 
 	}
 	auto end = std::chrono::system_clock::now();
 	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-	std::cout << "comm detection took time (in us) : " << total_time << std::endl;
+	//std::cout << "comm detection took time (in us) : " << total_time << std::endl;
 
 	if (iterations > 1) {
 		start = std::chrono::system_clock::now();
@@ -310,7 +320,7 @@ void  PLM::Local_move(GraphComm* graph) {
 			(*graph).communities[i] = com_map[(*graph).communities[i]];
 		end = std::chrono::system_clock::now();
 		total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		std::cout << "map comm took time (in us) : " << total_time << std::endl;
+		//std::cout << "map comm took time (in us) : " << total_time << std::endl;
 	}
 }
 
@@ -353,7 +363,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 		auto end = std::chrono::system_clock::now();
 
         	auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        	std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
+        	//std::cout << "-------------coarsen took time (in us) : " << total_time << std::endl;
 
 		start = std::chrono::system_clock::now();
 	
@@ -383,8 +393,8 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 
 		end = std::chrono::system_clock::now();
 
-        total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "-------------cleaning took time (in us) : " << total_time << std::endl;
+        	total_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        	//std::cout << "-------------cleaning took time (in us) : " << total_time << std::endl;
 		
 		std::vector<int> c_coarsened = Recursive_comm_detect(g_new);
 		g->communities = prolong(g, c_coarsened);
@@ -419,14 +429,14 @@ void get_weight_and_volumes(GraphComm* g) {
 
 void PLM::DetectCommunities() {
 
-	get_weight_and_volumes(&graph);
+	get_weight_and_volumes(graph);
 	//cout << "weight: " << graph.weight_net << endl;
-	graph.weight_sq = 2 * pow(graph.weight_net, 2); 
-	graph.communities = Recursive_comm_detect(&graph);
+	graph->weight_sq = 2 * pow(graph->weight_net, 2); 
+	graph->communities = Recursive_comm_detect(graph);
 	//cout << "final communities: ";
 	//print(graph.communities);
-	int found_comm = *std::max_element(std::begin(graph.communities), std::end(graph.communities)) + 1;
-	cout << "found " << found_comm << " communities" << endl;
+	//int found_comm = *std::max_element(std::begin(graph->communities), std::end(graph->communities)) + 1;
+	//cout << "found " << found_comm << " communities" << endl;
 }
 
 // the same for LP and Louvain. TODO: defined once
@@ -438,7 +448,7 @@ void PLM::PrintCommunities(const std::string &file_name) {
 		std::exit(2);
 	}
 
-	for (int i = 0; i < graph.n; i++) {
-		ofs << graph.communities[i] << std::endl;
+	for (int i = 0; i < graph->n; i++) {
+		ofs << graph->communities[i] << std::endl;
 	}
 }
