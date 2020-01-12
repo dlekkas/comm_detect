@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <iostream>
 
-#define EPS 0.0001
+#define EPS 0.00001
 
 class PLM {
 

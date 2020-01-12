@@ -9,7 +9,7 @@
 #include <math.h>
 
 #define NUM_SPLIT 100
-#define EPS 0.00001
+
 
 //TODO: 
 // 1) experiment with number of threads for local move at 2 levels + search for nested parallelism
@@ -149,6 +149,7 @@ void PLM::coarsen(GraphComm* g_initial, GraphComm* g, vector<vector<std::unorder
 	g->volumes = new_volumes;
 	g->net = new_net;
 	g->weight_net = (*g_initial).weight_net; //the sum of all edges remains the same
+	g->weight_sq = (*g_initial).weight_sq;
 
 
 	end = std::chrono::system_clock::now();
@@ -211,11 +212,17 @@ int PLM::ReturnCommunity(int i, GraphComm *g) {
 	    weight weight_c = weights[c];
 	    weight volume_c = volumes[c] - g->volumes[i];
 	    weight i_vol = g->volumes[i];
-        weight n_w = g->weight_net;
-        float n_w_float = n_w;
-	    long long double_sqr_n_w = g->weight_sq;
-		float i_vol_divided = (float) i_vol / double_sqr_n_w;
-	    float weight_c_divided = weight_c / n_w_float;
+            float n_w_float = g->weight_net;
+	    //long long double_sqr_n_w = g->weight_sq;
+	    //float i_vol_divided = (float) i_vol / double_sqr_n_w;
+	    float i_vol_divided = (float) i_vol/g->weight_net;
+	    i_vol_divided = (float) i_vol_divided/(g->weight_sq);
+
+	    float weight_c_divided = (float) weight_c / g->weight_net;
+
+	    //if (i<5)
+	    //	cout << "weight_float, i, i_vol, i_vol_divided, weight_c, weight_c_divided: " << n_w_float << ',' << i << ',' << i_vol << ',' <<  i_vol_divided << ',' << weight_c << ',' << weight_c_divided << endl;
+		
 
 	    std::pair<int, float> max_pair = std::make_pair(c, 0.0);
 	    float a, b, dmod;
@@ -264,6 +271,7 @@ void  PLM::Local_move(GraphComm* graph) {
 	int threads = std::min(graph->n, omp_get_max_threads());
 	//cout << "Inside LM with " << threads << " threads, and " << graph->n << " nodes " << endl;
 
+
 	/* */
 	int threshold = graph->n * EPS;
 	//cout << "threshold: " << threshold << endl;
@@ -280,11 +288,11 @@ void  PLM::Local_move(GraphComm* graph) {
 	auto start = std::chrono::system_clock::now();	
 	while (unstable && updated>threshold) {
 		iterations++;
-		//cout << "iteration:" << endl;
+		//cout << "iteration:" << iterations << endl;
 		//print(graph->communities);
 		//cout << "----------------------------" << endl;
 		unstable = 0;
-		updated=0;
+		updated = 0;
 		#pragma omp parallel for num_threads(threads)
 		for (int i=0; i<graph->n; i++) {
 			int i_comm = graph->communities[i];
@@ -305,7 +313,7 @@ void  PLM::Local_move(GraphComm* graph) {
 
 		}
 		//cout << "updated: " << updated << endl;
-
+		
 
 	}
 	auto end = std::chrono::system_clock::now();
@@ -404,7 +412,7 @@ std::vector<int> PLM::Recursive_comm_detect(GraphComm *g) {
 }
 
 void get_weight_and_volumes(GraphComm* g) {
-	weight sum = 0;
+	long long sum = 0;
 	std::vector<int> volumes(g->n, 0);
 	node_id u = 0;
 	# pragma omp parallel for schedule(static, NUM_SPLIT)
@@ -430,11 +438,13 @@ void get_weight_and_volumes(GraphComm* g) {
 void PLM::DetectCommunities() {
 
 	get_weight_and_volumes(graph);
-	//cout << "weight: " << graph.weight_net << endl;
-	graph->weight_sq = 2 * pow(graph->weight_net, 2); 
+	//cout << "weight: " << graph->weight_net << endl;
+	//graph->weight_sq = 2 * pow(graph->weight_net, 2); 
+	graph->weight_sq=graph->weight_net*2;
+	//cout << "weight_sq: " << graph->weight_sq << endl;
 	graph->communities = Recursive_comm_detect(graph);
 	//cout << "final communities: ";
-	//print(graph.communities);
+	//print(graph->communities);
 	//int found_comm = *std::max_element(std::begin(graph->communities), std::end(graph->communities)) + 1;
 	//cout << "found " << found_comm << " communities" << endl;
 }

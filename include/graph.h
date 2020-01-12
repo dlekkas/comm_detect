@@ -68,10 +68,15 @@ class GraphComm {
 		std::map<int,std::vector<int>> comm_population;
 
 		/* compute the total weight of the network only once + save it */
-		weight weight_net;
+		long long weight_net;
 
 		/* 2 * weight_net * weight_net */
 		long long weight_sq;
+
+		/* 0 -> plp, 1 -> plm */ 
+		int algo;
+
+		float weight_devided;
 
 		network net;
 
